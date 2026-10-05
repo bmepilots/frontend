@@ -1,6 +1,6 @@
 # BME Pilots 2026 · Frontend
 
-English React/TypeScript community portal for the unofficial BME Professional Pilot class of 2026. Future domain: bmepilots2026.com. Designed for desktop and mobile, with an integrated admin area. No university systems are integrated and no cloud deployment is configured.
+English React/TypeScript community portal for the unofficial BME Professional Pilot class of 2026. Future domain: bmepilots2026.com. Designed for desktop and mobile, with an integrated admin area. No university systems are integrated. The static container deployment targets a private Ubuntu VM; canonical configuration lives in `../db/deploy`. See `docs/STATUS.md` for actual deployment and verification evidence.
 
 ## Local start
 
@@ -38,6 +38,18 @@ Knowledge base navigation has been replaced by Shared Documents. Old `/knowledge
 - `npm run test`: unit tests.
 - `npm run format`: apply the committed Prettier style; `npm run format:check`: verify it.
 - `npm run preview`: locally serve a built bundle; API proxy is a development-server feature, so normal full-stack use is `npm run dev`.
+
+## Ubuntu VM container deployment
+
+`Dockerfile` builds the Vite bundle with Node 24.15.0 and serves the compiled files through Caddy 2.10.2. No Vite development server runs in the runtime image. `Caddyfile` preserves same-origin sessions by proxying `/api/*` to the internal `backend:8080` service without stripping the path. Other routes fall back to `index.html`, allowing direct navigation to React routes. Static responses use `Cache-Control: no-cache` so browsers revalidate after application updates; API responses retain backend cache controls. Baseline response headers disable content sniffing and unused browser capabilities.
+
+The gateway request limit is exactly `263192576` bytes (251 MiB), matching Spring's multipart limit and allowing five files of up to 50 MiB plus multipart overhead. A future external proxy's upload limit must be checked before public exposure; the current frontend sends all files in a single request.
+
+The canonical [`../db/deploy`](../db/deploy/README.md) stack replaces the earlier unversioned deployment draft. Its base publishes no host ports. `compose.loopback.yml` exposes only VM `127.0.0.1:8088` for an SSH-forwarded HTTP preview and sets the backend's `COOKIE_SECURE=false` for this mode. Database and backend ports remain unpublished. Cloudflare, public HTTPS and automatic VM updates are follow-up work; HTTPS must restore Secure cookies and use the base without the HTTP preview override. Storage preparation, startup health checks and persistent data under `/srv/bmepilots` are owned by the db deployment scripts, not frontend code.
+
+## Continuous integration and image publication
+
+`.github/workflows/ci.yml` is configured to run `npm ci`, tests, lint, formatting verification and the production build on pull requests and pushes to `main`, then build the Docker image. A successful `main` run is configured to publish `ghcr.io/<owner>/frontend:<commit-sha>` plus the moving `:main` tag using the workflow's short-lived `GITHUB_TOKEN`. Use the published digest as the immutable deployment reference; tags can move. See `docs/CI.md` for workflow and registry details. Workflow configuration is not proof of a completed GitHub run or published image; consult `docs/STATUS.md` for verified results. The workflow does not deploy to the VM.
 
 ## Documentation discipline
 

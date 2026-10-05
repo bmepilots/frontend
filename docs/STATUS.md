@@ -1,6 +1,6 @@
 # Frontend status and handoff
 
-Updated: 2026-10-04. Update on every code/contract change.
+Updated: 2026-10-05. Update on every code/contract change.
 
 ## Implemented
 
@@ -9,7 +9,7 @@ Updated: 2026-10-04. Update on every code/contract change.
 - Responsive navy/neutral BME Pilots 2026 interface with authentic empty states.
 - Dashboard, announcements, Shared Documents with uploads/discussion, calendar month/agenda views, member-contributed links, shared inbox and integrated admin screens.
 - Native dialogs, Markdown editors, category management, optimistic-version payloads and authenticated multipart uploads.
-- Documentation and AGENTS rules; deployment excluded.
+- Documentation and AGENTS rules; Caddy static frontend/gateway image deployed to the private Ubuntu VM via ../db/deploy. CI workflows are configured to verify and publish GHCR images.
 - All UI, accessibility labels, empty states and client errors are English; dates use en-GB formatting. User-provided content is not translated.
 - Lazy feature routes, Prettier formatting, account avatar link and CSRF refresh after session expiration.
 
@@ -33,8 +33,19 @@ Updated: 2026-10-04. Update on every code/contract change.
 - Password reset/recovery screen is not yet implemented; password change is available at /account.
 - A browser visual pass remains pending; backend and component tests cover mail read-state behavior.
 - A real calendar is available; no external calendar synchronization is implemented.
-- No production hosting or page-level HTTP security headers yet (deployment phase).
+- Private VM deployment verified. Public HTTPS/Cloudflare, compatible upload flow and automatic rollout remain pending. Hosted CI/GHCR publication is not yet verified.
 
 ## Handoff
 
 Use README for startup, ARCHITECTURE for route/data/security rules, backend/docs/API.md for the API. Keep the documentation synchronized when adding routes, changing payloads or running verification.
+
+## Private VM deployment — 2026-10-05
+
+- Canonical configuration is versioned in db/deploy; the old \_deployment-draft is superseded. Backend and frontend images were built on the Ubuntu 22.04.5 VM with Docker Engine 29.8.2 and Compose 5.6.0.
+- MariaDB 11.8.8, backend and frontend are healthy. Caddy serves the SPA and proxies /api from 127.0.0.1:8088; access is through SSH forwarding. No public tunnel is configured.
+- Persistent ext4 disk mounted at /srv/bmepilots contains MariaDB, documents, attachments and rolling logs. Docker has a RequiresMountsFor dependency; startup checks mount presence. Existing development DB3307 was not touched.
+- VM gateway checks passed: SPA/deep links, anonymous rejection, CSRF/login, authenticated dashboard/community/admin routes, upload/comment creation, logout rejection. Database metadata, comments and exact file bytes survived forced recreation of all three containers; only the test post was then removed.
+- Fresh per-VM random secrets were generated without printing passwords. Non-root backend storage ownership and group-readable secret permissions were verified by successful startup/upload. VM Gmail is disabled; local development Gmail settings were not copied.
+- A coordinated local backup stopped backend writes, captured MariaDB plus both file stores and image references, and restarted the existing backend. SHA256, gzip and tar integrity passed. Full restore rehearsal, scheduling and encrypted offsite copies are not yet implemented.
+- CI workflows passed actionlint 1.7.12/ShellCheck locally. GitHub-hosted execution and image publication remain unverified; the VM currently runs source-built images tagged vm-20261005, not registry images.
+- Frontend verification rerun: 38 tests passed and ESLint passed; production bundle built successfully inside the VM image. No browser visual QA was performed.

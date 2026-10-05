@@ -1,10 +1,18 @@
 # Frontend architecture
 
-Updated: 2026-10-04.
+Updated: 2026-10-05.
 
 ## Stack and composition
 
 React 19, TypeScript strict mode, Vite, React Router, TanStack Query, Lucide icons, react-markdown + remark-gfm. Lockfile pins the dependency graph. No global Redux-style state is needed. `src/main.tsx` composes QueryClient, BrowserRouter and AuthProvider. `src/app` owns routes/layout/styles; `src/features` owns screens and domain behavior; `src/shared` owns transport, DTO types, formatting and small UI primitives. Feature routes are lazy-loaded with Suspense; the public login stays eager. Prettier and ESLint define a repeatable source style.
+
+## Container and gateway boundary
+
+The image builds with Node 24.15.0 and runs Caddy 2.10.2 serving only the compiled bundle. Caddy proxies `/api/*` to the internal backend without changing the URI; no API hostname or credential is embedded in browser assets. This keeps cookie sessions, CSRF and downloads on the same origin. Non-API routes use the SPA fallback; static responses request revalidation with `Cache-Control: no-cache` to avoid retaining an old entry document after deployment. Backend API cache/security headers continue to apply, with gateway-wide baseline headers for content sniffing, referrers and browser capabilities.
+
+The request-body ceiling is `263192576` bytes, exactly 251 MiB. Spring uses the same total request limit; each of the five allowed files may be up to 50 MiB. Do not change this gateway value to decimal `251MB`, which is too small for the largest supported post. A future tunnel or proxy may impose a smaller request limit and must be resolved before public uploads; a per-file upload flow is not implemented yet.
+
+Canonical deployment is in `../db/deploy`, replacing the unversioned deployment draft. The base publishes no ports, and MariaDB/backend remain private to Docker networks. `compose.loopback.yml` publishes only the gateway at VM `127.0.0.1:8088` for SSH-forwarded HTTP verification and temporarily disables Secure cookies. Public HTTPS must restore Secure cookies and omit that preview override. The db preparation/start scripts own the `/srv/bmepilots` mount check, persistent storage permissions and service health ordering. See STATUS for actual run evidence; container or workflow files alone do not prove deployment or image publication.
 
 ## Feature map
 
@@ -54,3 +62,5 @@ Create a new feature directory and typed DTOs; use the shared API client; add a 
 ## Current tradeoffs
 
 Feature screens initially co-locate their query/form logic; extract components/hooks as screens grow. One stylesheet contains grouped tokens, shell and component styles to make the initial design coherent. No dedicated UI component framework or rich text editor. Offset pagination mirrors current backend limits. PortalName is currently persisted/configured, while the brand wordmark stays fixed to the BME Pilots identity.
+
+Public HTTPS/Cloudflare, automatic VM updates and an external-proxy upload strategy remain deployment follow-ups. Separate backend runtime/migration database credentials, coordinated encrypted offsite backups and restore rehearsals are also required operational follow-ups; the frontend image does not provide them.
