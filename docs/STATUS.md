@@ -33,7 +33,7 @@ Updated: 2026-10-05. Update on every code/contract change.
 - Password reset/recovery screen is not yet implemented; password change is available at /account.
 - A browser visual pass remains pending; backend and component tests cover mail read-state behavior.
 - A real calendar is available; no external calendar synchronization is implemented.
-- Private VM deployment verified. Public HTTPS/Cloudflare, compatible upload flow and automatic rollout remain pending. Hosted CI and GHCR publication succeeded on 2026-10-05.
+- Private VM deployment verified. The per-file upload flow and restricted proxy trust for Cloudflare are implemented; public activation and automatic rollout are tracked by the sibling db deployment. Hosted CI and GHCR publication succeeded on 2026-10-05.
 
 ## Handoff
 
@@ -51,3 +51,12 @@ Use README for startup, ARCHITECTURE for route/data/security rules, backend/docs
 - Frontend verification rerun: 38 tests passed and ESLint passed; production bundle built successfully inside the VM image. No browser visual QA was performed.
 
 - Hosted verification and GHCR publication succeeded: [backend run](https://github.com/bmepilots/backend/actions/runs/37312796111), [frontend run](https://github.com/bmepilots/frontend/actions/runs/37312807646). The VM remains on the verified source-built image pair; image publication alone does not roll out a new version. All three repositories were pushed successfully.
+
+## Cloudflare upload and proxy preparation — 2026-10-05
+
+- Document creation now sends one file per request to `/documents/uploads`, then publishes JSON with the staged IDs. The five-file/50 MiB-per-file limits are preserved while each browser request fits below 100 MB.
+- The editor shows the file currently uploading, reuses successful stages after a failed transfer, and requests cleanup on removal/cancellation/unmount. Backend expiry handles unreachable or abandoned cleanup. Publication retry preserves the original IDs to avoid duplicate posts after a lost response; unavailable IDs stop retries and direct the member back to the list.
+- Caddy trusts only the configured tunnel connector IP for `CF-Connecting-IP`, normalizes `X-Forwarded-For` and strips alternative forwarded visitor-IP headers. Public deployment must also restrict backend proxy trust to Caddy's fixed internal address.
+- The runtime image declares API requirement `2` so deployment tooling can defer this frontend until the backend image advertises staged-upload support.
+- All 41 frontend tests across eight files passed, including six document interaction tests. ESLint, TypeScript/Vite production build and Prettier checks passed. Caddy 2.10.2 adapted and validated the configuration. A disposable real Docker proxy check passed for both trusted and untrusted callers: spoofed visitor/protocol headers from direct callers were rejected, trusted Cloudflare visitor IP/HTTPS survived, and alternative headers did not reach the origin. Test containers and network were removed afterward.
+- This is transport/component verification, not live browser visual QA or proof of public tunnel activation. Consult the deployment status for the running VM revision and Cloudflare state.

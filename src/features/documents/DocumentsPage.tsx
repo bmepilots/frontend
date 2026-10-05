@@ -13,155 +13,14 @@ import {
   Send,
   Trash2,
   Upload,
-  X,
 } from 'lucide-react'
 import { api } from '../../shared/api/client'
 import { date } from '../../shared/types/models'
 import type { DocumentComment, DocumentDetail, DocumentPost } from '../../shared/types/models'
 import { Empty, ErrorBox, Loading, Modal, PageTitle, Pager } from '../../shared/ui/primitives'
 import { useAuth } from '../auth/auth-context'
-import { fileSize, validateDocumentFiles } from './document-files'
-
-function PostEditor({
-  post,
-  onClose,
-  onSaved,
-}: {
-  post?: DocumentPost
-  onClose: () => void
-  onSaved: () => void
-}) {
-  const [files, setFiles] = useState<File[]>([])
-  const [validation, setValidation] = useState<Error | null>(null)
-  const save = useMutation({
-    mutationFn: (body: FormData | { title: string; description: string; version: number }) =>
-      api(post ? `/documents/${post.id}` : '/documents', { method: post ? 'PATCH' : 'POST', body }),
-    onSuccess: onSaved,
-  })
-  return (
-    <Modal
-      title={post ? 'Edit document post' : 'Share documents'}
-      onClose={() => {
-        if (!save.isPending) onClose()
-      }}
-    >
-      <form
-        onSubmit={(event) => {
-          event.preventDefault()
-          setValidation(null)
-          const fields = new FormData(event.currentTarget)
-          const title = String(fields.get('title') ?? '').trim()
-          const description = String(fields.get('description') ?? '').trim()
-          if (post) {
-            save.mutate({ title, description, version: post.version })
-            return
-          }
-          const error = validateDocumentFiles(files)
-          if (error) {
-            setValidation(new Error(error))
-            return
-          }
-          const body = new FormData()
-          body.append('title', title)
-          body.append('description', description)
-          files.forEach((file) => body.append('files', file))
-          save.mutate(body)
-        }}
-      >
-        <ErrorBox error={validation ?? save.error} />
-        <fieldset disabled={save.isPending} className="form-fields">
-          <label>
-            Title
-            <input
-              name="title"
-              required
-              maxLength={180}
-              defaultValue={post?.title ?? ''}
-              placeholder="Give these documents a useful title"
-            />
-          </label>
-          <label>
-            Description
-            <textarea
-              name="description"
-              rows={5}
-              maxLength={100000}
-              defaultValue={post?.description ?? ''}
-              placeholder="What are you sharing? Add context, instructions or a question for the crew."
-            />
-          </label>
-          {!post && (
-            <>
-              <label className="upload-picker">
-                <Upload size={25} />
-                <strong>Choose files to share</strong>
-                <span>Up to 5 files · 50 MB per file</span>
-                <input
-                  type="file"
-                  multiple
-                  aria-label="Choose document files"
-                  onChange={(event) => {
-                    const next = [...files, ...Array.from(event.target.files ?? [])]
-                    const error = validateDocumentFiles(next)
-                    if (error) setValidation(new Error(error))
-                    else {
-                      setFiles(next)
-                      setValidation(null)
-                    }
-                    event.target.value = ''
-                  }}
-                />
-              </label>
-              <div className="selected-files" aria-live="polite">
-                {files.map((file, index) => (
-                  <div className="selected-file" key={`${file.name}-${index}`}>
-                    <FileText size={18} />
-                    <span>
-                      {file.name}
-                      <small>{fileSize(file.size)}</small>
-                    </span>
-                    <button
-                      type="button"
-                      className="icon-button"
-                      aria-label={`Remove ${file.name}`}
-                      onClick={() => {
-                        setFiles(files.filter((_, i) => i !== index))
-                        setValidation(null)
-                      }}
-                    >
-                      <X size={17} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-          {post && (
-            <p className="form-hint">
-              This updates the title and description. To share a different set of files, create a
-              new post.
-            </p>
-          )}
-          <div className="form-actions">
-            <button className="button" disabled={save.isPending}>
-              <Upload size={16} />
-              {save.isPending
-                ? post
-                  ? 'Saving…'
-                  : 'Uploading… Please keep this window open'
-                : post
-                  ? 'Save changes'
-                  : 'Publish documents'}
-            </button>
-            <button type="button" className="button secondary" onClick={onClose}>
-              Cancel
-            </button>
-          </div>
-        </fieldset>
-      </form>
-    </Modal>
-  )
-}
+import { fileSize } from './document-files'
+import { PostEditor } from './PostEditor'
 
 export function DocumentsPage() {
   const client = useQueryClient()
@@ -279,7 +138,12 @@ export function DocumentsPage() {
       <Pager page={page} setPage={setPage} hasNext={query.data?.length === 20} />
       {uploading && (
         <PostEditor
-          onClose={() => setUploading(false)}
+          onClose={() => {
+            setUploading(false)
+            // A lost publication response may still have created the post.
+            client.invalidateQueries({ queryKey: ['documents'] })
+            client.invalidateQueries({ queryKey: ['dashboard'] })
+          }}
           onSaved={() => {
             setUploading(false)
             setPage(0)

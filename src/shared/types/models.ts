@@ -54,6 +54,13 @@ export type DocumentPost = {
   fileCount: number
   commentCount: number
 }
+export type DocumentUpload = {
+  id: string
+  filename: string
+  sizeBytes: number
+  contentType: string
+  expiresAt: string
+}
 export type DocumentComment = {
   id: string
   body: string
