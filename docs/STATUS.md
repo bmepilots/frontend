@@ -33,7 +33,7 @@ Updated: 2026-10-05. Update on every code/contract change.
 - Password reset/recovery screen is not yet implemented; password change is available at /account.
 - A browser visual pass remains pending; backend and component tests cover mail read-state behavior.
 - A real calendar is available; no external calendar synchronization is implemented.
-- Private VM deployment verified. Public HTTPS/Cloudflare, compatible upload flow and automatic rollout remain pending. Hosted CI/GHCR publication is not yet verified.
+- Private VM deployment verified. Public HTTPS/Cloudflare, compatible upload flow and automatic rollout remain pending. Hosted CI and GHCR publication succeeded on 2026-10-05.
 
 ## Handoff
 
@@ -47,5 +47,7 @@ Use README for startup, ARCHITECTURE for route/data/security rules, backend/docs
 - VM gateway checks passed: SPA/deep links, anonymous rejection, CSRF/login, authenticated dashboard/community/admin routes, upload/comment creation, logout rejection. Database metadata, comments and exact file bytes survived forced recreation of all three containers; only the test post was then removed.
 - Fresh per-VM random secrets were generated without printing passwords. Non-root backend storage ownership and group-readable secret permissions were verified by successful startup/upload. VM Gmail is disabled; local development Gmail settings were not copied.
 - A coordinated local backup stopped backend writes, captured MariaDB plus both file stores and image references, and restarted the existing backend. SHA256, gzip and tar integrity passed. Full restore rehearsal, scheduling and encrypted offsite copies are not yet implemented.
-- CI workflows passed actionlint 1.7.12/ShellCheck locally. GitHub-hosted execution and image publication remain unverified; the VM currently runs source-built images tagged vm-20261005, not registry images.
+- CI workflows passed actionlint 1.7.12/ShellCheck locally. GitHub-hosted execution and image publication subsequently succeeded; the VM currently runs source-built images tagged vm-20261005, not registry images.
 - Frontend verification rerun: 38 tests passed and ESLint passed; production bundle built successfully inside the VM image. No browser visual QA was performed.
+
+- Hosted verification and GHCR publication succeeded: [backend run](https://github.com/bmepilots/backend/actions/runs/37312796111), [frontend run](https://github.com/bmepilots/frontend/actions/runs/37312807646). The VM remains on the verified source-built image pair; image publication alone does not roll out a new version. All three repositories were pushed successfully.

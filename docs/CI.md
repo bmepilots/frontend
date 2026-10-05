@@ -41,7 +41,7 @@ The image contains the built SPA and Caddy gateway. The workflow does not SSH to
 
 ## Maintenance and verification
 
-On 2026-10-05 both repository workflows passed actionlint 1.7.12, including ShellCheck validation. This workflow and this document also passed the repository's Prettier check. This is local validation; GitHub execution and GHCR publication have not yet been verified.
+On 2026-10-05 both repository workflows passed actionlint 1.7.12, including ShellCheck validation. This workflow and this document also passed the repository's Prettier check. This local validation was followed by a successful GitHub verification/publication run on 2026-10-05; see STATUS.md for the run link.
 
 - Upgrade Node in this workflow and the Dockerfile together; keep the npm lockfile committed and use `npm ci`.
 - Update action pins from official release tags and keep version comments accurate. Current pins were resolved against the official GitHub repositories on 2026-10-05.
