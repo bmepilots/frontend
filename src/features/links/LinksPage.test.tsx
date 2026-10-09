@@ -17,6 +17,7 @@ const member: User = {
   email: 'member@example.test',
   displayName: 'Crew member',
   role: 'USER',
+  lastLoginAt: null,
   status: 'ACTIVE',
   version: 0,
   createdAt: '2026-10-03T00:00:00',
@@ -57,7 +58,14 @@ function mount(user = member) {
   return render(
     <QueryClientProvider client={client}>
       <AuthContext.Provider
-        value={{ user, loading: false, error: null, login: vi.fn(), logout: vi.fn() }}
+        value={{
+          user,
+          loading: false,
+          error: null,
+          passwordReset: false,
+          login: vi.fn(),
+          logout: vi.fn(),
+        }}
       >
         <LinksPage />
       </AuthContext.Provider>

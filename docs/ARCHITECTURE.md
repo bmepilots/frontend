@@ -1,6 +1,6 @@
 # Frontend architecture
 
-Updated: 2026-10-05.
+Updated: 2026-10-09.
 
 ## Stack and composition
 
@@ -10,7 +10,7 @@ React 19, TypeScript strict mode, Vite, React Router, TanStack Query, Lucide ico
 
 The image builds with Node 24.15.0 and runs Caddy 2.10.2 serving only the compiled bundle. Caddy proxies `/api/*` to the internal backend without changing the URI; no API hostname or credential is embedded in browser assets. This keeps cookie sessions, CSRF and downloads on the same origin. Non-API routes use the SPA fallback; static responses request revalidation with `Cache-Control: no-cache` to avoid retaining an old entry document after deployment. Backend API cache/security headers continue to apply, with gateway-wide baseline headers for content sniffing, referrers and browser capabilities.
 
-The runtime image requires API contract `2` through `io.bmepilots.api.requires`; the staged-upload backend advertises that contract through `io.bmepilots.api.contracts`. The updater must match these labels before replacing either image, because independent successful CI runs do not guarantee the same API contract. See `docs/CI.md` for maintenance rules.
+The runtime image requires API contract `3` through `io.bmepilots.api.requires`; the backend advertises that contract through `io.bmepilots.api.contracts`. Contract 3 includes staged uploads, administrator password resets and last-successful-sign-in metadata. The updater must match these labels before replacing either image, because independent successful CI runs do not guarantee the same API contract. See `docs/CI.md` for maintenance rules.
 
 The request-body ceiling is `263192576` bytes, exactly 251 MiB, retained for older direct clients. Current document creation uses up to five separate multipart requests, each carrying one file of at most 50 MiB, followed by JSON publication. Thus each upload stays below Cloudflare's 100 MB request limit without reducing the total size of a post. The backend independently enforces count, size, ownership and expiry.
 
@@ -27,7 +27,7 @@ Canonical deployment is in `../db/deploy`, replacing the unversioned deployment 
 - calendar: month/agenda views, date/type filtering and event editor; `calendar-dates.ts` owns civil-date calculations.
 - links: categorized external links, member contribution and owner/admin editor.
 - mail: local inbox, filtering, sandboxed message view, downloads and personal flags; successful opening marks read once per opening.
-- admin: shared admin navigation, user/approval/settings/audit/mail operations, reusable category manager.
+- admin: shared admin navigation, user/approval/settings/audit/mail operations, reusable category manager, member sign-in timestamps and the dedicated `PasswordResetDialog.tsx`.
 
 Admin content routes reuse feature pages. Documents/calendar are community screens with author/admin actions; links additionally exposes admin category management. Backend authorization is authoritative. The route guard hides private views for anonymous/pending users and admin views for ordinary members; it is not the security boundary. Legacy `/knowledge/*` and `/admin/knowledge/*` routes redirect to documents; the old knowledge component is no longer routed. The backend preserves the archive and rejects legacy writes with 410.
 
@@ -38,6 +38,14 @@ All requests go to /api/v1 via shared/api/client.ts. Fetch uses same-origin cook
 Preserve the observed `['session']` query when clearing private cached data. Removing that query disconnects the provider from subsequent login updates and can leave the login screen visible after the server accepts the credentials. Session lookup receives an AbortSignal, and login/logout cancels an older lookup before publishing the new user/null value so a stale response cannot undo that transition. Successful login puts the returned user into the session query and the login route redirects to the dashboard. Six rendered tests use the real App/route guards under React StrictMode to cover that transition, delayed stale lookup, an existing session, failed credentials, expiry/repeat sign-in/logout, and an unavailable secondary CSRF refresh. Check STATUS for actual results.
 
 The backend clears a revoked session cookie while still allowing public authentication/configuration routes; protected routes remain 401. This lets a member sign in again directly after expiration or password/session revocation without a failed first attempt caused by the obsolete session. A 401 from a private request clears frontend session state and private query data.
+
+### Administrator password reset
+
+`PUT /admin/users/{id}/password` accepts `{newPassword, version}` and returns the updated `User`. The ordinary API client supplies same-origin cookies and CSRF; the backend enforces admin authorization, nonblank 12–128-character passwords and optimistic concurrency. The Members screen captures the target object when the dialog opens. It does not silently substitute a refreshed version into a submitted reset. A 409 refreshes the member list, disables resubmission and requires reopening to review current details. Resetting does not change account status, role or lastLoginAt.
+
+The dialog uses uncontrolled password inputs with `autocomplete="new-password"` and a transient async submit handler, deliberately avoiding a TanStack Query mutation whose variables could retain a plaintext password. Client validation preserves exact password characters and checks confirmation; whitespace-only input is rejected. Inputs are cleared immediately before the request, on cancellation through unmount, and after a successful dialog close. React state contains only pending/error/conflict flags, not the password. The UI locks duplicate submissions and native-dialog Close/Escape while pending. A failed request requires password re-entry. No password appears in a notification or gets sent by email.
+
+Successful resets for another member invalidate admin queries and display a name/email-only status notice. Self-reset dispatches the existing `session-expired` event as a CustomEvent with the non-secret reason `password-reset`. The provider cancels an obsolete session lookup, clears CSRF and private cached data and publishes a null session without deleting its observed query. It also holds a boolean `passwordReset` notice flag in memory; `AuthPage` reads that flag for the fixed English sign-in-again notice. The explicit navigation and Protected route guard both lead to `/login`, so the notice must not rely on navigation state, which competing redirects can replace. A late ordinary session-expired event retains the notice; successful sign-in or explicit logout clears it. A full page reload also discards this memory-only notice. No logout request is required after the backend has revoked the session. Backend tests remain authoritative for revocation, permissions and audit redaction.
 
 The transport accepts FormData for uploads and leaves Content-Type unset so the browser generates a matching multipart boundary. It still attaches CSRF. `POST /documents/uploads` receives a single `file`; `POST /documents` then receives `{title, description, uploadIds}`. Successful stages are reused after a failed transfer. A publication attempt freezes the file selection and reuses the same IDs on retry, because a lost response may mean the post already exists. A 404 on publication disables retry and asks the member to check the list; it never automatically reuploads consumed IDs. Removal, cancel and editor unmount request best-effort deletion of unconsumed stages, while backend expiry handles unreachable cleanup and abandoned tabs. Client state is memory-only. Downloads use authenticated relative API URLs and forced attachment headers. Client-side file count/size validation is feedback only; the backend independently enforces 1–5 nonempty files of at most 50 MiB each.
 
@@ -50,6 +58,8 @@ Activity timestamps, including document/comment creation and calendar createdAt/
 The backend returns authorId/authorName and owns creation attribution. Controls depend on the current user being the author or an admin, but all mutations repeat those checks server-side. Moderator edits preserve original authorship. Legacy links with no recorded author display Original content; migration does not invent an author.
 
 Admin audit has separate named activity and API request views. The latter shows method, route template, response status and duration. Full timestamps display in Europe/Budapest. Credentials, cookies, raw query strings and content bodies are excluded by backend logging, not merely hidden by the UI.
+
+The `User` DTO also has nullable `lastLoginAt`, a UTC ISO timestamp (the backend can omit the `Z`). Members and Applications display it with `Intl.DateTimeFormat('en-GB', {dateStyle: 'medium', timeStyle: 'medium', timeZone: 'Europe/Budapest'})` and a semantic `<time>` element. The column explicitly names the timezone. Null displays `No sign-in recorded`, which does not claim that a historical sign-in never occurred. It records successful authentication, not activity, refreshes or password resets. The backend handles historical backfill and success-only persistence.
 
 ## UI decisions
 

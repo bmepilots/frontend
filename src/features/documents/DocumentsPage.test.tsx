@@ -18,6 +18,7 @@ const member = {
   email: 'member@example.test',
   displayName: 'Crew member',
   role: 'USER' as const,
+  lastLoginAt: null,
   status: 'ACTIVE',
   version: 0,
   createdAt: '2026-10-03T00:00:00',
@@ -52,7 +53,14 @@ function mount(detail = false) {
   return render(
     <QueryClientProvider client={client}>
       <AuthContext.Provider
-        value={{ user: member, loading: false, error: null, login: vi.fn(), logout: vi.fn() }}
+        value={{
+          user: member,
+          loading: false,
+          error: null,
+          passwordReset: false,
+          login: vi.fn(),
+          logout: vi.fn(),
+        }}
       >
         <MemoryRouter initialEntries={[detail ? '/documents/post-1' : '/documents']}>
           <Routes>

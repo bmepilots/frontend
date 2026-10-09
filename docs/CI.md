@@ -1,6 +1,6 @@
 # Frontend continuous integration and container publication
 
-Updated: 2026-10-05.
+Updated: 2026-10-08.
 
 ## Workflow and checks
 
@@ -39,7 +39,7 @@ The commit tag identifies source; `main` moves after a successful publication. A
 
 The image contains the built SPA and Caddy gateway. The workflow does not SSH to the VM, update Compose, configure DNS/Tunnel or publish a public website. VM rollout and rollback belong to the deployment tooling. Images have no environment-specific frontend secrets: browser traffic uses same-origin `/api`, with runtime routing controlled by Caddy. Never put passwords, tokens or Gmail settings in `VITE_*` values.
 
-The runtime Docker image declares `io.bmepilots.api.requires="2"`: this frontend requires the staged document upload API. Compatible backend images declare `io.bmepilots.api.contracts` containing `2`. The VM updater must inspect these labels and defer an incompatible pair, including when the frontend workflow finishes before its backend counterpart. Update both contract labels with any cross-repository breaking API change; do not infer compatibility from independently moving `main` tags or successful healthchecks alone.
+The runtime Docker image declares `io.bmepilots.api.requires="3"`: this frontend requires staged document uploads, administrator password resets and last-sign-in metadata. Compatible backend images declare `io.bmepilots.api.contracts` containing `3` (the coordinated backend also supports contracts `1` and `2` for older clients). The VM updater must inspect these labels and defer an incompatible pair, including when the frontend workflow finishes before its backend counterpart. Update both contract labels when a frontend starts depending on new cross-repository APIs; do not infer compatibility from independently moving `main` tags or successful healthchecks alone.
 
 ## Maintenance and verification
 

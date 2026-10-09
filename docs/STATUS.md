@@ -1,6 +1,6 @@
 # Frontend status and handoff
 
-Updated: 2026-10-05. Update on every code/contract change.
+Updated: 2026-10-09. Update on every code/contract change.
 
 ## Implemented
 
@@ -30,7 +30,7 @@ Updated: 2026-10-05. Update on every code/contract change.
 ## Limitations
 
 - Real Gmail is configured in this workspace; visual verification of the populated inbox is still pending.
-- Password reset/recovery screen is not yet implemented; password change is available at /account.
+- Administrator password reset is available in Admin → Members; self-service email recovery remains unimplemented. Password change is available at /account.
 - A browser visual pass remains pending; backend and component tests cover mail read-state behavior.
 - A real calendar is available; no external calendar synchronization is implemented.
 - Private VM deployment verified. The per-file upload flow and restricted proxy trust for Cloudflare are implemented; public activation and automatic rollout are tracked by the sibling db deployment. Hosted CI and GHCR publication succeeded on 2026-10-05.
@@ -79,3 +79,15 @@ Use README for startup, ARCHITECTURE for route/data/security rules, backend/docs
 - The workstation router DNS at 192.168.0.1 still cached a negative response temporarily, while Cloudflare/Google public resolvers returned the correct edge addresses. During that cache window the operator test explicitly used a freshly resolved Cloudflare edge IP while preserving the real hostname, HTTPS SNI and certificate verification. No hosts-file or persistent DNS setting was changed. Direct home-router WAN IP access is not the application route.
 - Final public persistence check passed after recreating the registry-backed backend: exact staged-document bytes/comments survived, the operator test post was deleted, and logout invalidated the session. A new backup of the patched V8 deployment also passed an isolated restore (SQL/Flyway, login/protected APIs, two referenced mail files; no document remained in that snapshot after test cleanup).
 - The router's negative DNS cache expired. A normal HTTPS request from the workstation, using its unchanged system DNS and no address override, returned 200 for /login. Cloudflare configuration and local hostname resolution are both verified. The smoke client identifies itself as BMEPilotsDeploymentCheck/1.0; the generic Python user agent had been rejected by the edge.
+
+## Admin passwords and sign-in history — 2026-10-08/09
+
+- Admin → Members now exposes a named-account password-reset dialog with 12–128-character/nonblank validation, confirmation, English pending/error/success feedback and exact target/version submission. The action does not email credentials or change membership status/role. The Applications screen keeps approval separate from password reset.
+- Password fields are cleared on submission and cancellation; plaintext never enters React state, query/mutation caches, browser storage or success notices. Pending controls prevent duplicate requests and Close/Escape dismissal. A 409 refreshes the list and requires review by closing/reopening, without automatic resubmission against a new version.
+- Self-reset clears the actual auth session/CSRF/private cached content and navigates to login with a fixed success notice. Other-member reset keeps the admin signed in and refreshes admin data. Session revocation is enforced in the sibling backend.
+- Members and Applications display the latest recorded successful sign-in in en-GB date/time, explicitly labelled Europe/Budapest, with daylight-saving conversion from UTC. Null is shown as `No sign-in recorded`, avoiding a false claim about historical activity.
+- The frontend runtime now requires API contract `3`; the paired backend must advertise it before this frontend can roll out. README, architecture, agent, CI and testing guidance were synchronized.
+- Final verification on 2026-10-09: all 53 Vitest tests across nine files passed, including the real-App route-guard regression. ESLint, the full Prettier check, strict TypeScript and the Vite production build passed. Existing community/auth tests were updated with the nullable User DTO field and continue to pass.
+- New rendered checks cover Budapest summer/winter conversion and null history, explicit target identity, canceled-field cleanup, short/blank/mismatched password rejection, exact ID/version submission, duplicate/pending Close/Escape prevention, success/API failure, query/mutation cache redaction, 409 refresh/reopen, unchanged inactive status, self-reset through the real AuthProvider/login page and separate application approval. Tests use isolated fixture credentials and mocked transport; they do not prove live backend permission enforcement or a desktop/mobile browser pass.
+- Initial isolated browser verification found that competing Protected/login redirects could discard a self-reset success notice stored in navigation state. A regression test using the real App guards reproduced the missing notice before the fix. The notice now lives only as a boolean in AuthProvider, survives ordinary late session-expired events and clears after a successful sign-in/logout. The real-App regression and full verification pass after the fix.
+- Desktop browser verification passed against an isolated backend on8081 and Docker test database3308 through Vite5174, with Gmail disabled and a separate test-session cookie. Verified UTC-to-Budapest last-sign-in display, unknown history, target identity, mismatch validation, another member's successful reset without logging out the administrator, self-reset redirect with its success notice, successful login using the replacement password, and cancellation. Only disposable test accounts were reset; no production account password was changed. This does not claim a mobile visual pass or hosted CI/image rollout.

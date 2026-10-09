@@ -4,6 +4,7 @@ export const AuthContext = createContext<{
   user: User | null
   loading: boolean
   error: unknown
+  passwordReset: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
 } | null>(null)

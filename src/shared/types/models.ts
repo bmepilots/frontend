@@ -6,6 +6,7 @@ export type User = {
   role: 'USER' | 'ADMIN'
   version: number
   createdAt: string
+  lastLoginAt: string | null
 }
 export type Category = { id: string; name: string; sortOrder: number }
 export type Announcement = {

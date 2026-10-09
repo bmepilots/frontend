@@ -1,5 +1,5 @@
 import { ArrowLeft, ArrowRight, Inbox, LoaderCircle, X } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import type { ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -108,12 +108,15 @@ export function Modal({
   title,
   children,
   onClose,
+  closeDisabled = false,
 }: {
   title: string
   children: ReactNode
   onClose: () => void
+  closeDisabled?: boolean
 }) {
   const ref = useRef<HTMLDialogElement>(null)
+  const titleId = useId()
   useEffect(() => {
     const dialog = ref.current
     dialog?.showModal()
@@ -123,14 +126,20 @@ export function Modal({
     <dialog
       ref={ref}
       className="modal"
+      aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault()
-        onClose()
+        if (!closeDisabled) onClose()
       }}
     >
       <div className="modal-head">
-        <h2>{title}</h2>
-        <button className="icon-button" onClick={onClose} aria-label="Close">
+        <h2 id={titleId}>{title}</h2>
+        <button
+          className="icon-button"
+          onClick={onClose}
+          aria-label="Close"
+          disabled={closeDisabled}
+        >
           <X size={20} />
         </button>
       </div>

@@ -24,6 +24,7 @@ Start the backend with `pwsh -File scripts/dev.ps1 -Bootstrap` on first run; rea
 - Useful links: every active member can add links; owners/admins can edit/delete. Category management remains admin-only, with General available as an initial category.
 - Shared inbox with search, unread filter, message view, attachment downloads and personal read/important state. Successfully opening a message marks it read; manually marking it unread persists until it is opened again.
 - Admin overview, registrations, users, announcements, documents, calendar, links, mail connection, settings and separate activity/API request log views.
+- Admin → Members shows each member's last recorded successful sign-in in Europe/Budapest. Reset password lets an administrator set and confirm a 12–128-character password for any listed account, without changing its status or role. The affected account's sessions are revoked; resetting your own password returns you to sign-in. No password email is sent.
 - `/account` for password changes (successful change revokes sessions).
 
 No fake messages, dates, schedules or external account connections are seeded. Empty states are intentional until members contribute content or mail is configured. Source defaults leave Gmail disabled; the current workspace has a configured backend-only connection, documented in the backend. The Gmail-disabled state is explained in the admin screen.
@@ -38,6 +39,14 @@ Knowledge base navigation has been replaced by Shared Documents. Old `/knowledge
 - `npm run test`: unit tests.
 - `npm run format`: apply the committed Prettier style; `npm run format:check`: verify it.
 - `npm run preview`: locally serve a built bundle; API proxy is a development-server feature, so normal full-stack use is `npm run dev`.
+
+## Admin password resets and sign-in history
+
+In Admin → Members, choose **Reset password** on the intended account. The dialog identifies the member by name and email, requires the same new password twice, and submits the member's current version. Passwords must have 12–128 characters and cannot consist only of whitespace. Closing the dialog discards the entered values; submission immediately clears both fields. A failed request therefore requires re-entry. The pending request cannot be submitted twice or dismissed through the dialog controls. A stale-version conflict refreshes the list and requires closing and reopening the form to review the current member before retrying.
+
+Share the new password privately with the intended member: this action does not email it or activate an inactive account. Existing sessions for that account are revoked, while an administrator resetting somebody else's account remains signed in. A self-reset clears the frontend session and private cached content, then opens the login page with a success notice. Passwords are sent only in the protected API request; they are not saved in React state, TanStack Query mutation variables, browser storage or success messages.
+
+The **Last sign-in (Europe/Budapest)** column displays the most recent recorded successful authentication, including time. It is not a last-activity or online-status indicator. UTC API values are rendered in en-GB format using Budapest's daylight-saving rules regardless of the viewer's computer timezone. Missing values display **No sign-in recorded** because historical data may be incomplete. API contract `3` is required; the deployment updater checks the image label before rolling out this frontend.
 
 ## Ubuntu VM container deployment
 

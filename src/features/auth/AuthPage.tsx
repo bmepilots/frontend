@@ -6,7 +6,7 @@ import { useAuth } from './auth-context'
 import { api } from '../../shared/api/client'
 import { ErrorBox, Loading } from '../../shared/ui/primitives'
 export function AuthPage() {
-  const { user, loading, error, login } = useAuth()
+  const { user, loading, error, login, passwordReset } = useAuth()
   const [register, setRegister] = useState(false)
   const [done, setDone] = useState(false)
   const config = useQuery({
@@ -77,6 +77,11 @@ export function AuthPage() {
               : 'Sign in to your class community portal.'}
           </p>
           <ErrorBox error={error ?? config.error} />
+          {passwordReset && !register && (
+            <div className="success compact" role="status">
+              Your password was reset. Sign in again with your new password.
+            </div>
+          )}
           {done ? (
             <div className="success" role="status">
               <ShieldCheck size={24} />

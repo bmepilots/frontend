@@ -1,6 +1,6 @@
 # Frontend verification
 
-Updated: 2026-10-05. These are coverage and verification instructions; consult `STATUS.md` for checks actually executed.
+Updated: 2026-10-09. These are coverage and verification instructions; consult `STATUS.md` for checks actually executed.
 
 Run `npm ci`, `npm run test`, `npm run lint`, `npm run build`, and `npm run format:check` from this repository. Tests use Vitest with mocked transport boundaries; component tests use a DOM test environment. They do not require browser control or Gmail credentials.
 
@@ -11,10 +11,11 @@ Run `npm ci`, `npm run test`, `npm run lint`, `npm run build`, and `npm run form
 - Structured HTTP errors preserved for the UI.
 - Empty 204 responses.
 - Network failures translated into actionable English feedback.
-- Six rendered real-App/route-guard tests under React StrictMode cover successful login, existing-session redirect, failed-login feedback, delayed stale session lookup cancellation, secondary CSRF-refresh independence and expiry/repeat-sign-in/logout behavior with private-cache handling.
+- Seven rendered real-App/route-guard tests under React StrictMode cover successful login, existing-session redirect, failed-login feedback, delayed stale session lookup cancellation, secondary CSRF-refresh independence, expiry/repeat-sign-in/logout behavior with private-cache handling, and the reset-notice lifecycle across expiry events and a fresh login.
 - Multipart file validation and document contribution/comment component interactions: one request per file followed by JSON publication, retry reuse, cancellation cleanup and safe handling of an ambiguous publication response.
 - Calendar civil-date calculations, exclusive all-day ranges and calendar editor interactions.
 - Successful-open mail read marking, manual unread, important flag preservation and failure behavior.
+- Admin Members: UTC/Budapest summer and winter timestamps, missing-history wording, exact target/version reset requests, cancellation, password length/blank/confirmation feedback, disabled pending controls, retained errors, stale-version refresh/reopen, cache redaction and self-reset through the real App, Protected guards, AuthProvider and login page. Approval remains separate from reset; inactive member status is preserved.
 
 Consult `src/features/**/*.test.ts(x)` and `src/shared/api/client.test.ts` for exact assertions. Component tests provide reproducible interaction checks but are not a rendered desktop/mobile browser pass. Backend permission, file-storage and calendar validation tests run in the sibling backend against a separate real MariaDB.
 
@@ -32,6 +33,7 @@ TypeScript checks all feature DTO usage, route components and mutation handlers.
 8. Add a calendar exam, event and homework deadline; check month/agenda navigation, date/type filters, a multi-day all-day range, an event spanning a month boundary and owner/admin editing. Confirm Europe/Budapest times remain unchanged under a different computer timezone.
 9. Add a useful link as a member and verify attribution and owner/admin controls. In Admin, manage a link category and an announcement; confirm member pages and dashboard refresh. Review separate named activity and API request views without logging fixture passwords or content bodies.
 10. Sign out; verify private cached content disappears and private URLs redirect to login. Repeat sign-in without reloading to check the observed session query survives the transition.
+11. In a disposable environment, open Admin → Members and check the last-sign-in timezone column, null history and table scrolling on a narrow screen. Reset a test member's password, check keyboard focus/Close/Escape, mismatch feedback, the target identity, success status and new-password sign-in. Confirm old credentials and the member's other sessions stop working while the admin remains signed in. Verify inactive accounts stay inactive. Reset a disposable admin's own password and confirm immediate login navigation with a notice and a successful next sign-in. Never reset a real member merely to test the feature or capture credentials in screenshots/logs.
 
 ## Current limitation
 

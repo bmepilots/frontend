@@ -22,6 +22,7 @@ const user = {
   displayName: 'Test Pilot',
   status: 'ACTIVE',
   role: 'USER',
+  lastLoginAt: null,
   version: 0,
   createdAt: '2026-10-03T10:00:00',
 }
@@ -153,5 +154,25 @@ describe('Sign-in routing with the real app guards', () => {
     await screen.findByRole('heading', { name: 'Dashboard ready' })
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }))
     await waitFor(() => expect(screen.getByLabelText('Current route').textContent).toBe('/login'))
+  })
+  it('retains the reset notice across late expiry events and clears it after signing in again', async () => {
+    mount()
+    await screen.findByRole('button', { name: /^Sign in$/ })
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('session-expired', { detail: { reason: 'password-reset' } }),
+      )
+      window.dispatchEvent(new Event('session-expired'))
+    })
+    expect(
+      await screen.findByText('Your password was reset. Sign in again with your new password.'),
+    ).toBeTruthy()
+    await signIn()
+    await screen.findByRole('heading', { name: 'Dashboard ready' })
+    await userEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+    await screen.findByRole('button', { name: /^Sign in$/ })
+    expect(
+      screen.queryByText('Your password was reset. Sign in again with your new password.'),
+    ).toBeNull()
   })
 })

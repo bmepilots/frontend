@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ArrowUpRight, Check, RefreshCw, ShieldCheck, Users, X } from 'lucide-react'
 import { api } from '../../shared/api/client'
 import type { User } from '../../shared/types/models'
 import { date, statusLabels } from '../../shared/types/models'
 import { Empty, ErrorBox, Loading, PageTitle, Pager } from '../../shared/ui/primitives'
 import { useAuth } from '../auth/auth-context'
+import { PasswordResetDialog } from './PasswordResetDialog'
 export function AdminDashboard() {
   const q = useQuery({
     queryKey: ['admin', 'dashboard'],
@@ -68,7 +69,10 @@ export function AdminDashboard() {
 export function UsersPage({ pending = false }: { pending?: boolean }) {
   const client = useQueryClient()
   const { user: me } = useAuth()
+  const navigate = useNavigate()
   const [page, setPage] = useState(0)
+  const [resetTarget, setResetTarget] = useState<User | null>(null)
+  const [passwordNotice, setPasswordNotice] = useState('')
   const q = useQuery({
     queryKey: ['admin', 'users', pending, page],
     queryFn: () =>
@@ -99,6 +103,11 @@ export function UsersPage({ pending = false }: { pending?: boolean }) {
         }
       />
       <ErrorBox error={q.error ?? m.error} />
+      {passwordNotice && (
+        <div className="success compact" role="status">
+          {passwordNotice}
+        </div>
+      )}
       {q.isPending ? (
         <Loading />
       ) : q.data?.length ? (
@@ -109,6 +118,7 @@ export function UsersPage({ pending = false }: { pending?: boolean }) {
                 <th>Name / email</th>
                 <th>Status</th>
                 <th>Role</th>
+                <th>Last sign-in (Europe/Budapest)</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -125,6 +135,25 @@ export function UsersPage({ pending = false }: { pending?: boolean }) {
                     </span>
                   </td>
                   <td>{u.role === 'ADMIN' ? 'Admin' : 'Member'}</td>
+                  <td>
+                    {u.lastLoginAt ? (
+                      <time
+                        dateTime={u.lastLoginAt.endsWith('Z') ? u.lastLoginAt : u.lastLoginAt + 'Z'}
+                      >
+                        {new Intl.DateTimeFormat('en-GB', {
+                          dateStyle: 'medium',
+                          timeStyle: 'medium',
+                          timeZone: 'Europe/Budapest',
+                        }).format(
+                          new Date(
+                            u.lastLoginAt.endsWith('Z') ? u.lastLoginAt : u.lastLoginAt + 'Z',
+                          ),
+                        )}
+                      </time>
+                    ) : (
+                      'No sign-in recorded'
+                    )}
+                  </td>
                   <td>
                     <div className="table-actions">
                       {pending ? (
@@ -151,6 +180,17 @@ export function UsersPage({ pending = false }: { pending?: boolean }) {
                         </>
                       ) : (
                         <>
+                          <button
+                            className="button small secondary"
+                            disabled={m.isPending}
+                            aria-label={`Reset password for ${u.email}`}
+                            onClick={() => {
+                              setPasswordNotice('')
+                              setResetTarget(u)
+                            }}
+                          >
+                            Reset password
+                          </button>
                           {u.status === 'ACTIVE' && (
                             <button
                               className="button small secondary"
@@ -215,6 +255,29 @@ export function UsersPage({ pending = false }: { pending?: boolean }) {
         )
       )}
       <Pager page={page} setPage={setPage} hasNext={q.data?.length === 50} />
+      {resetTarget && (
+        <PasswordResetDialog
+          key={resetTarget.id}
+          user={resetTarget}
+          self={resetTarget.id === me?.id}
+          onClose={() => setResetTarget(null)}
+          onConflict={() => void client.invalidateQueries({ queryKey: ['admin', 'users'] })}
+          onSuccess={(updated) => {
+            setResetTarget(null)
+            if (updated.id === me?.id) {
+              window.dispatchEvent(
+                new CustomEvent('session-expired', { detail: { reason: 'password-reset' } }),
+              )
+              navigate('/login', { replace: true })
+            } else {
+              setPasswordNotice(
+                `Password reset for ${updated.displayName} (${updated.email}). Their current sessions have been signed out.`,
+              )
+              void client.invalidateQueries({ queryKey: ['admin'] })
+            }
+          }}
+        />
+      )}
     </>
   )
 }
