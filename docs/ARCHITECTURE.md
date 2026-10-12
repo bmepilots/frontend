@@ -1,6 +1,6 @@
 # Frontend architecture
 
-Updated: 2026-10-09.
+Updated: 2026-10-10.
 
 ## Stack and composition
 
@@ -10,7 +10,7 @@ React 19, TypeScript strict mode, Vite, React Router, TanStack Query, Lucide ico
 
 The image builds with Node 24.15.0 and runs Caddy 2.10.2 serving only the compiled bundle. Caddy proxies `/api/*` to the internal backend without changing the URI; no API hostname or credential is embedded in browser assets. This keeps cookie sessions, CSRF and downloads on the same origin. Non-API routes use the SPA fallback; static responses request revalidation with `Cache-Control: no-cache` to avoid retaining an old entry document after deployment. Backend API cache/security headers continue to apply, with gateway-wide baseline headers for content sniffing, referrers and browser capabilities.
 
-The runtime image requires API contract `3` through `io.bmepilots.api.requires`; the backend advertises that contract through `io.bmepilots.api.contracts`. Contract 3 includes staged uploads, administrator password resets and last-successful-sign-in metadata. The updater must match these labels before replacing either image, because independent successful CI runs do not guarantee the same API contract. See `docs/CI.md` for maintenance rules.
+The runtime image requires API contract `4` through `io.bmepilots.api.requires`; the backend advertises that contract through `io.bmepilots.api.contracts`. Contract 4 adds administrator mail-forwarding settings/status to staged uploads, administrator password resets and last-successful-sign-in metadata. The updater must match these labels before replacing either image, because independent successful CI runs do not guarantee the same API contract. See `docs/CI.md` for maintenance rules.
 
 The request-body ceiling is `263192576` bytes, exactly 251 MiB, retained for older direct clients. Current document creation uses up to five separate multipart requests, each carrying one file of at most 50 MiB, followed by JSON publication. Thus each upload stays below Cloudflare's 100 MB request limit without reducing the total size of a post. The backend independently enforces count, size, ownership and expiry.
 
@@ -27,7 +27,7 @@ Canonical deployment is in `../db/deploy`, replacing the unversioned deployment 
 - calendar: month/agenda views, date/type filtering and event editor; `calendar-dates.ts` owns civil-date calculations.
 - links: categorized external links, member contribution and owner/admin editor.
 - mail: local inbox, filtering, sandboxed message view, downloads and personal flags; successful opening marks read once per opening.
-- admin: shared admin navigation, user/approval/settings/audit/mail operations, reusable category manager, member sign-in timestamps and the dedicated `PasswordResetDialog.tsx`.
+- admin: shared admin navigation, user/approval/settings/audit/mail operations, reusable category manager, member sign-in timestamps, `PasswordResetDialog.tsx` and `MailForwardingPanel.tsx`.
 
 Admin content routes reuse feature pages. Documents/calendar are community screens with author/admin actions; links additionally exposes admin category management. Backend authorization is authoritative. The route guard hides private views for anonymous/pending users and admin views for ordinary members; it is not the security boundary. Legacy `/knowledge/*` and `/admin/knowledge/*` routes redirect to documents; the old knowledge component is no longer routed. The backend preserves the archive and rejects legacy writes with 410.
 
@@ -50,6 +50,16 @@ Successful resets for another member invalidate admin queries and display a name
 The transport accepts FormData for uploads and leaves Content-Type unset so the browser generates a matching multipart boundary. It still attaches CSRF. `POST /documents/uploads` receives a single `file`; `POST /documents` then receives `{title, description, uploadIds}`. Successful stages are reused after a failed transfer. A publication attempt freezes the file selection and reuses the same IDs on retry, because a lost response may mean the post already exists. A 404 on publication disables retry and asks the member to check the list; it never automatically reuploads consumed IDs. Removal, cancel and editor unmount request best-effort deletion of unconsumed stages, while backend expiry handles unreachable cleanup and abandoned tabs. Client state is memory-only. Downloads use authenticated relative API URLs and forced attachment headers. Client-side file count/size validation is feedback only; the backend independently enforces 1–5 nonempty files of at most 50 MiB each.
 
 TanStack Query keys start with the domain (announcements/documents/calendar/links/mail/admin/session). Mutations invalidate domain data and dashboard aggregates where appropriate. Version values travel back on content writes and deletes; 409 errors require reloading, not blind overwrite. Forms preserve error messages and disable duplicate submission while pending. Mail PATCH sends only the changed read/important field; this avoids overwriting another flag from stale list data. Manual unread is not immediately undone by the open-message effect; it is marked read only after another opening.
+
+### Administrator mail forwarding
+
+`MailForwardingPanel.tsx` is a separate section of `MailAdminPage`. `GET /admin/mail/forwarding` returns `{enabled, available, enabledAt, version, counts: {pending, sending, sent, failed, uncertain, cancelled}, lastError}`. `PATCH` at the same path accepts `{enabled, version}` and returns the updated status. The existing `/admin/mail/status` and IMAP operations are unchanged. The backend owns administrator authorization, the default-off setting, cutoff selection, durable outbox and recipient selection; the browser never constructs a mail recipient list or sends SMTP.
+
+The query key is `['admin', 'mail', 'forwarding']`; it refreshes every 15 seconds with an abort signal. A mutation cancels an earlier status request before sending, then publishes the returned DTO and invalidates that exact query. Writes explicitly disable retries and use the displayed version. Any write error locks the toggle until the administrator successfully refreshes the status, avoiding an automatic second toggle after a lost response. A failed refresh retains that lock. A query error also blocks toggling stale state. Disabling remains possible if forwarding is already enabled but server mail configuration has become unavailable. Success wording describes the saved setting, not delivery of any particular message.
+
+The server's `available` flag means mail is enabled and credentials are configured/readable, not that Gmail SMTP has been tested. Its `sent` counter is displayed as **Accepted by Gmail**, with a delivery limitation beside the counts. Uncertain acceptance has separate wording and no automatic resend control. The panel maps the backend's closed set of safe `lastError` codes to English descriptions and displays that recognized code for operator troubleshooting; unknown codes become a generic notice, never raw SMTP exception details. The last reported issue can be historical even after other deliveries succeed. Existing IMAP connection testing does not prove outgoing delivery.
+
+UI copy explains future-only forwarding, automatic inclusion of newly Active accounts, imported attachments, separate private recipient copies, Active rechecking, queued cancellation and in-flight limits. `enabledAt` is interpreted as UTC and displayed with an explicit Europe/Budapest timezone. Further delivery policy and recovery behavior live in the backend mail documentation. Never silently turn forwarding on after migration or infer recipients from a cached member list.
 
 ## Time and attribution
 

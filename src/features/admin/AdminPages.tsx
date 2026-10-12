@@ -8,6 +8,7 @@ import { date, statusLabels } from '../../shared/types/models'
 import { Empty, ErrorBox, Loading, PageTitle, Pager } from '../../shared/ui/primitives'
 import { useAuth } from '../auth/auth-context'
 import { PasswordResetDialog } from './PasswordResetDialog'
+import { MailForwardingPanel } from './MailForwardingPanel'
 export function AdminDashboard() {
   const q = useQuery({
     queryKey: ['admin', 'dashboard'],
@@ -384,81 +385,84 @@ export function MailAdminPage() {
       <PageTitle
         eyebrow="MAIL OPERATIONS"
         title="Email connection"
-        text="Synchronize Gmail messages into your own database."
+        text="Synchronize your shared inbox and manage forwarding to Active members."
       />
       <ErrorBox error={q.error ?? m.error} />
-      {q.isPending ? (
-        <Loading />
-      ) : (
-        q.data && (
-          <section className="panel article-card">
-            <span className={'tag ' + (q.data.enabled ? 'green' : 'orange')}>
-              {q.data.enabled
-                ? q.data.running
-                  ? 'Sync in progress'
-                  : 'Connection enabled'
-                : 'Not configured yet'}
-            </span>
-            <h2>Gmail · IMAP</h2>
-            <p>
-              The backend manages this connection. Your browser never receives Gmail credentials or
-              connects directly to the mailbox.
-            </p>
-            {!q.data.enabled && (
-              <div className="notice">
-                To enable mail, ask the server operator to configure the Gmail address and App
-                Password secret file as described in the backend documentation.
-              </div>
-            )}
-            {q.data.accounts.map((a) => (
-              <dl className="detail-list" key={a.id}>
-                <dt>Mailbox</dt>
-                <dd>{a.emailAddress}</dd>
-                <dt>Last successful sync</dt>
-                <dd>{a.lastSuccessAt ? date(a.lastSuccessAt) : 'Not yet completed'}</dd>
-                <dt>Error status</dt>
-                <dd>
-                  {a.lastError
-                    ? 'Connection or processing error. Check the server configuration.'
-                    : 'No reported error'}
-                </dd>
-              </dl>
-            ))}
-            <p className="muted">Processing failures: {q.data.failedMessages}</p>
-            <div className="item-actions">
-              <button
-                className="button"
-                disabled={!q.data.enabled || q.data.running || m.isPending}
-                onClick={() => m.mutate('sync')}
-              >
-                <RefreshCw size={16} />
-                Synchronize
-              </button>
-              <button
-                className="button secondary"
-                disabled={!q.data.enabled || m.isPending}
-                onClick={() => m.mutate('test-connection')}
-              >
-                Test connection
-              </button>
-              {q.data.failedMessages > 0 && (
+      <div className="mail-admin-panels">
+        {q.isPending ? (
+          <Loading />
+        ) : (
+          q.data && (
+            <section className="panel article-card">
+              <span className={'tag ' + (q.data.enabled ? 'green' : 'orange')}>
+                {q.data.enabled
+                  ? q.data.running
+                    ? 'Sync in progress'
+                    : 'Connection enabled'
+                  : 'Not configured yet'}
+              </span>
+              <h2>Gmail · IMAP</h2>
+              <p>
+                The backend manages this connection. Your browser never receives Gmail credentials
+                or connects directly to the mailbox.
+              </p>
+              {!q.data.enabled && (
+                <div className="notice">
+                  To enable mail, ask the server operator to configure the Gmail address and App
+                  Password secret file as described in the backend documentation.
+                </div>
+              )}
+              {q.data.accounts.map((a) => (
+                <dl className="detail-list" key={a.id}>
+                  <dt>Mailbox</dt>
+                  <dd>{a.emailAddress}</dd>
+                  <dt>Last successful sync</dt>
+                  <dd>{a.lastSuccessAt ? date(a.lastSuccessAt) : 'Not yet completed'}</dd>
+                  <dt>Error status</dt>
+                  <dd>
+                    {a.lastError
+                      ? 'Connection or processing error. Check the server configuration.'
+                      : 'No reported error'}
+                  </dd>
+                </dl>
+              ))}
+              <p className="muted">Processing failures: {q.data.failedMessages}</p>
+              <div className="item-actions">
+                <button
+                  className="button"
+                  disabled={!q.data.enabled || q.data.running || m.isPending}
+                  onClick={() => m.mutate('sync')}
+                >
+                  <RefreshCw size={16} />
+                  Synchronize
+                </button>
                 <button
                   className="button secondary"
-                  disabled={m.isPending}
-                  onClick={() => m.mutate('retry')}
+                  disabled={!q.data.enabled || m.isPending}
+                  onClick={() => m.mutate('test-connection')}
                 >
-                  Retry failed messages
+                  Test connection
                 </button>
+                {q.data.failedMessages > 0 && (
+                  <button
+                    className="button secondary"
+                    disabled={m.isPending}
+                    onClick={() => m.mutate('retry')}
+                  >
+                    Retry failed messages
+                  </button>
+                )}
+              </div>
+              {m.isSuccess && (
+                <p className="success compact" role="status">
+                  The request completed or was accepted for processing.
+                </p>
               )}
-            </div>
-            {m.isSuccess && (
-              <p className="success compact" role="status">
-                The request completed or was accepted for processing.
-              </p>
-            )}
-          </section>
-        )
-      )}
+            </section>
+          )
+        )}
+        <MailForwardingPanel />
+      </div>
     </>
   )
 }

@@ -1514,6 +1514,10 @@ td code {
   max-width: 600px;
   padding: 30px;
 }
+.mail-admin-panels {
+  display: grid;
+  gap: 24px;
+}
 .detail-list {
   display: grid;
   grid-template-columns: 170px 1fr;
