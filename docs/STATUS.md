@@ -1,6 +1,6 @@
 # Frontend status and handoff
 
-Updated: 2026-10-10. Update on every code/contract change.
+Updated: 2026-10-12. Update on every code/contract change.
 
 ## Implemented
 
@@ -104,3 +104,5 @@ Use README for startup, ARCHITECTURE for route/data/security rules, backend/docs
 - New tests cover loading and integration with the existing mail page; future/new-member wording; enable and disable with exact versions; Budapest cutoff display; disabled-unavailable enabling; disabling while unavailable; duplicate/pending controls; stale versions; ambiguous network writes; refresh failure/recovery; initial status failure; delivery counters; uncertain acceptance; recognized safe codes and unknown-error redaction.
 - This evidence uses mocked frontend transport and fixture data. It does not verify real SMTP delivery, backend recipient selection, browser layout, hosted CI/image publication or this feature's production rollout. No SSH connection, production toggle change or real email send was performed for frontend verification. Root integration/browser and release checks are recorded separately when completed.
 - Desktop browser QA passed on 2026-10-10 with the packaged backend8081 and isolated MariaDB3308 through Vite5174. Verified successful login redirection, navigation to the new admin panel, real delivery counters, disabled enabling while mail is unavailable, refresh, and successful disabling of an isolated fixture setting with its cancellation notice. No browser console errors were recorded. Gmail stayed disabled and no production state changed. A full-page screenshot was saved outside Git; this is a desktop check, not a mobile visual pass or live delivery proof.
+- On 2026-10-12, frontend `5539617f1de5de0138dc11bec6a16f5edda05f5d` passed [hosted CI and image publication](https://github.com/bmepilots/frontend/actions/runs/38241472689), together with backend `68bca06045086bf15caebcd686224936639c344f` ([workflow](https://github.com/bmepilots/backend/actions/runs/38241449072)). With SSH restored, the existing guarded updater deployed both at 11:20:36 UTC (13:20 Budapest), after its coordinated backup. All four containers were healthy and the running OCI labels matched API contract 4. Public HTTPS served the new `AdminPages-sCIc5Vzx.js` bundle with the forwarding panel and API path; anonymous API access returned 401.
+- The live forwarding setting remains OFF and the outbox empty. A no-message SMTP authentication/NOOP probe from the backend container passed; this is not proof of recipient inbox delivery. No production setting was enabled and no real email was sent. Temporary QA services and DB3308 were removed, with development DB3307 preserved; release SSH sessions were closed.
