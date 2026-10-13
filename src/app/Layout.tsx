@@ -9,6 +9,7 @@ import {
   Mail,
   Files,
   CalendarDays,
+  GraduationCap,
   Link2,
   Shield,
   LogOut,
@@ -24,6 +25,7 @@ const nav = [
   { to: '/mail', label: 'Shared inbox', icon: Mail },
   { to: '/documents', label: 'Shared documents', icon: Files },
   { to: '/calendar', label: 'Calendar', icon: CalendarDays },
+  { to: '/study', label: 'Exam prep', icon: GraduationCap },
   { to: '/links', label: 'Useful links', icon: Link2 },
 ]
 export function Layout() {

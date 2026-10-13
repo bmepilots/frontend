@@ -3,6 +3,9 @@ import { lazy, Suspense } from 'react'
 import { Layout } from './Layout'
 import { useAuth } from '../features/auth/auth-context'
 import { AuthPage } from '../features/auth/AuthPage'
+const StudyPage = lazy(() =>
+  import('../features/study/StudyPage').then((m) => ({ default: m.StudyPage })),
+)
 const AccountPage = lazy(() =>
   import('../features/auth/AccountPage').then((m) => ({ default: m.AccountPage })),
 )
@@ -68,6 +71,7 @@ export function App() {
             <Route path="documents" element={<DocumentsPage />} />
             <Route path="documents/:id" element={<DocumentPage />} />
             <Route path="calendar" element={<CalendarPage />} />
+            <Route path="study" element={<StudyPage />} />
             <Route path="knowledge/*" element={<Navigate to="/documents" replace />} />
             <Route path="links" element={<LinksPage />} />
             <Route path="mail" element={<MailPage />} />

@@ -47,7 +47,7 @@ In Admin → Members, choose **Reset password** on the intended account. The dia
 
 Share the new password privately with the intended member: this action does not email it or activate an inactive account. Existing sessions for that account are revoked, while an administrator resetting somebody else's account remains signed in. A self-reset clears the frontend session and private cached content, then opens the login page with a success notice. Passwords are sent only in the protected API request; they are not saved in React state, TanStack Query mutation variables, browser storage or success messages.
 
-The **Last sign-in (Europe/Budapest)** column displays the most recent recorded successful authentication, including time. It is not a last-activity or online-status indicator. UTC API values are rendered in en-GB format using Budapest's daylight-saving rules regardless of the viewer's computer timezone. Missing values display **No sign-in recorded** because historical data may be incomplete. These member-management features were introduced in API contract `3`; the complete frontend now requires contract `4` for mail forwarding. The deployment updater checks the image label before rolling out this frontend.
+The **Last sign-in (Europe/Budapest)** column displays the most recent recorded successful authentication, including time. It is not a last-activity or online-status indicator. UTC API values are rendered in en-GB format using Budapest's daylight-saving rules regardless of the viewer's computer timezone. Missing values display **No sign-in recorded** because historical data may be incomplete. These member-management features were introduced in API contract `3`; the complete frontend now requires contract `5` for exam preparation, including the earlier mail-forwarding contract. The deployment updater checks the image label before rolling out this frontend.
 
 ## Shared inbox forwarding
 
@@ -78,3 +78,7 @@ The canonical [`../db/deploy`](../db/deploy/README.md) stack replaces the earlie
 ## Documentation discipline
 
 Read `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/COMMUNITY.md` and `docs/TESTING.md`. Update `docs/STATUS.md` on every change with features, actual checks and limitations. Update this README for setup changes, architecture for cross-cutting choices and backend API docs for contract changes. All three sibling repositories have independent histories; do not add a parent Git repository.
+
+## Exam prep — API contract 5
+
+The new Exam prep area provides 38 original engineering exercises, an interactive circuit explorer, Learn/Practice/Mock exam flows and private saved results. Backend Flyway V11 owns study-attempt storage; Docker MariaDB and existing backups are reused. See `docs/STUDY.md` for source analysis, ownership, grading, extension and operational details. Local implementation does not imply deployment; consult STATUS for evidence.
