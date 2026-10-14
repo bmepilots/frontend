@@ -99,6 +99,8 @@ export type MailSummary = {
   receivedAt: string
   isRead: boolean
   isImportant: boolean
+  importantForEveryone: boolean
+  moderationVersion: number
   attachmentCount: number
 }
 export type MailDetail = {
@@ -110,6 +112,8 @@ export type MailDetail = {
     receivedAt: string
     bodyText: string
     bodyHtml: string
+    importantForEveryone: boolean
+    moderationVersion: number
   }
   addresses: { addressType: string; address: string; displayName: string }[]
   attachments: { id: string; filename: string; contentType: string; sizeBytes: number }[]

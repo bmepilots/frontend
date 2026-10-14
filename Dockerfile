@@ -11,7 +11,7 @@ COPY . .
 RUN npm run build
 
 FROM caddy:2.10.2-alpine
-LABEL io.bmepilots.api.requires="5"
+LABEL io.bmepilots.api.requires="6"
 
 COPY --from=build /app/dist /srv
 COPY Caddyfile /etc/caddy/Caddyfile

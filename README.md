@@ -82,3 +82,7 @@ Read `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/COMMUNITY.md` and `docs/TESTING.
 ## Exam prep — API contract 5
 
 Exam prep starts with clickable **subject → midterm → topic** cards. Choose Basics of (Mechanical) Engineering, First midterm, then a topic or Full midterm review. The study room provides 38 original engineering exercises, an interactive circuit explorer, Learn/Practice/Mock exam flows and private saved results. Topic selection filters practice and notes; mock exams cover the full midterm. Breadcrumbs and URL-based selections support back navigation and direct links. Backend Flyway V11 owns study-attempt storage; Docker MariaDB and existing backups are reused. See `docs/STUDY.md` for source analysis, ownership, grading, extension and operational details. Consult STATUS for verified deployment evidence.
+
+## Shared mail moderation
+
+Admins can open any message in Shared inbox and mark it important for everyone, remove its shared importance, or delete it for everyone after confirmation. A shared importance badge appears in the list and message view for all members. Personal stars and read flags remain independent. Deletion affects the portal inbox only: Gmail stays unchanged, queued forwarding is cancelled, and copies already sending/delivered cannot be recalled. Deleted content is retained internally for deduplication and backup consistency, not permanently erased. The visible inbox/detail refresh every 30 seconds. The matching backend must support API contract 6.

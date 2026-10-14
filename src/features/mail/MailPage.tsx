@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, Mail, Paperclip, Search, Star, X } from 'lucide-react'
+import { Download, Mail, Paperclip, Search, Star, Trash2, X } from 'lucide-react'
+import { useAuth } from '../auth/auth-context'
 import { api } from '../../shared/api/client'
 import type { MailSummary, MailDetail } from '../../shared/types/models'
 import { date } from '../../shared/types/models'
 import { Empty, ErrorBox, Loading, PageTitle, Pager } from '../../shared/ui/primitives'
 export function MailPage() {
   const client = useQueryClient()
+  const { user } = useAuth()
+  const admin = user?.role === 'ADMIN'
+  const [notice, setNotice] = useState('')
   const [search, setSearch] = useState('')
   const [draft, setDraft] = useState('')
   const [unread, setUnread] = useState(false)
@@ -15,6 +19,7 @@ export function MailPage() {
   const opened = useRef<string | null>(null)
   const list = useQuery({
     queryKey: ['mail', 'list', search, unread, page],
+    refetchInterval: 30_000,
     queryFn: () =>
       api<MailSummary[]>(
         `/mail/messages?q=${encodeURIComponent(search)}&unread=${unread}&page=${page}`,
@@ -24,6 +29,42 @@ export function MailPage() {
     queryKey: ['mail', 'detail', selected?.id],
     queryFn: () => api<MailDetail>(`/mail/messages/${selected?.id}`),
     enabled: !!selected,
+    refetchInterval: 30_000,
+  })
+  const moderation = useMutation({
+    mutationFn: ({
+      id,
+      version,
+      important,
+    }: {
+      id: string
+      version: number
+      important?: boolean
+    }) =>
+      api(`/admin/mail/messages/${id}${important === undefined ? '' : '/importance'}`, {
+        method: important === undefined ? 'DELETE' : 'PATCH',
+        body: important === undefined ? { version } : { version, importantForEveryone: important },
+      }),
+    retry: false,
+    onSuccess: async (_, change) => {
+      await client.cancelQueries({ queryKey: ['mail'] })
+      if (change.important === undefined) {
+        setSelected((current) => (current?.id === change.id ? null : current))
+        client.removeQueries({ queryKey: ['mail', 'detail', change.id] })
+        setNotice('Message deleted from the shared inbox for everyone.')
+      } else {
+        setNotice(
+          change.important
+            ? 'Message marked important for everyone.'
+            : 'Shared important flag removed.',
+        )
+      }
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ['mail'] }),
+        client.invalidateQueries({ queryKey: ['dashboard'] }),
+        client.invalidateQueries({ queryKey: ['admin', 'mail'] }),
+      ])
+    },
   })
   const state = useMutation({
     mutationFn: ({
@@ -56,7 +97,7 @@ export function MailPage() {
       <PageTitle
         eyebrow="SHARED INBOX"
         title="Shared inbox"
-        text="Your community inbox, with your own read and important flags."
+        text="Your community inbox, with personal stars and messages marked important for everyone by admins."
       />
       <div className="toolbar">
         <form
@@ -90,6 +131,27 @@ export function MailPage() {
         </label>
       </div>
       <ErrorBox error={list.error ?? state.error} />
+      <ErrorBox error={moderation.error} />
+      {notice && <p role="status">{notice}</p>}
+      {moderation.isError && (
+        <p>
+          Refresh the message before making another shared change; the previous request may have
+          completed.{' '}
+          <button
+            className="button secondary"
+            disabled={detail.isFetching || list.isFetching}
+            onClick={async () => {
+              const results = await Promise.all([
+                list.refetch(),
+                ...(selected ? [detail.refetch()] : []),
+              ])
+              if (results.every((result) => !result.isError)) moderation.reset()
+            }}
+          >
+            Refresh mail
+          </button>
+        </p>
+      )}
       <div className={'mail-layout ' + (selected ? 'has-selection' : '')}>
         <section className="panel inbox-panel">
           {list.isPending ? (
@@ -124,6 +186,11 @@ export function MailPage() {
                     <time>{date(m.receivedAt)}</time>
                   </div>
                   <p>{m.subject || '(No subject)'}</p>
+                  {m.importantForEveryone && (
+                    <small>
+                      <Star size={12} fill="currentColor" /> Important for everyone
+                    </small>
+                  )}
                   {m.attachmentCount > 0 && (
                     <small>
                       <Paperclip size={12} />
@@ -167,6 +234,11 @@ export function MailPage() {
               detail.data && (
                 <>
                   <h2>{detail.data.message.subject || '(No subject)'}</h2>
+                  {detail.data.message.importantForEveryone && (
+                    <p className="security-note">
+                      <Star size={16} fill="currentColor" /> Important for everyone
+                    </p>
+                  )}
                   <p className="message-meta">
                     <strong>{detail.data.message.senderName}</strong> &lt;
                     {detail.data.message.senderAddress}&gt;
@@ -192,6 +264,51 @@ export function MailPage() {
                     >
                       {selected.isRead ? 'Mark as unread' : 'Mark as read'}
                     </button>
+                    {admin && (
+                      <>
+                        <button
+                          className="button secondary"
+                          disabled={moderation.isPending || moderation.isError || detail.isFetching}
+                          onClick={() => {
+                            setNotice('')
+                            moderation.mutate({
+                              id: selected.id,
+                              version: detail.data.message.moderationVersion,
+                              important: !detail.data.message.importantForEveryone,
+                            })
+                          }}
+                        >
+                          <Star size={16} />{' '}
+                          {detail.data.message.importantForEveryone
+                            ? 'Remove importance for everyone'
+                            : 'Mark important for everyone'}
+                        </button>
+                        <button
+                          className="button danger"
+                          disabled={
+                            moderation.isPending ||
+                            moderation.isError ||
+                            state.isPending ||
+                            detail.isFetching
+                          }
+                          onClick={() => {
+                            if (
+                              confirm(
+                                'Delete this message from the shared inbox for everyone? Gmail is unchanged. Queued forwarding is cancelled; copies already sent or being sent cannot be recalled.',
+                              )
+                            ) {
+                              setNotice('')
+                              moderation.mutate({
+                                id: selected.id,
+                                version: detail.data.message.moderationVersion,
+                              })
+                            }
+                          }}
+                        >
+                          <Trash2 size={16} /> Delete for everyone
+                        </button>
+                      </>
+                    )}
                   </div>
                   {detail.data.message.bodyHtml ? (
                     <iframe
