@@ -1,9 +1,12 @@
 import { useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BookOpen, CircuitBoard, Flag, ArrowRight, Check, RotateCcw } from 'lucide-react'
 import { api } from '../../shared/api/client'
 import { ErrorBox, Loading } from '../../shared/ui/primitives'
 import { CircuitDiagram } from './CircuitDiagram'
+import { StudyBreadcrumbs, StudySelection } from './StudySelection'
+import { lessonsFor, midtermsFor, studyUrl, topicDescriptions } from './curriculum'
 import {
   mockQuestions,
   type Attempt,
@@ -19,38 +22,126 @@ export function StudyPage() {
     queryKey: ['study', 'subjects'],
     queryFn: () => api<Subject[]>('/study/subjects'),
   })
-  const [selected, setSelected] = useState('basics-of-engineering')
+  const [params] = useSearchParams()
   if (subjects.isPending) return <Loading />
   if (!subjects.data) return <ErrorBox error={subjects.error} />
-  const subject = subjects.data.find((s) => s.id === selected) ?? subjects.data[0]
+  const subjectId = params.get('subject')
+  const midtermId = params.get('midterm')
+  const topic = params.get('topic')
+  const subject = subjects.data.find((s) => s.id === subjectId)
+  const midterm = subject && midtermsFor(subject).find((m) => m.id === midtermId)
+  const topics = midterm ? [...new Set(midterm.subject.exercises.map((e) => e.topic))] : []
+  const trail: { label: string; to?: string }[] = [
+    { label: 'Exam prep', to: subjectId ? '/study' : undefined },
+  ]
+  if (subject)
+    trail.push({ label: subject.title, to: midtermId ? studyUrl(subject.id) : undefined })
+  if (midterm)
+    trail.push({ label: midterm.title, to: topic ? studyUrl(subject!.id, midterm.id) : undefined })
+  if (topic && midterm && (topic === 'all' || topics.includes(topic)))
+    trail.push({ label: topic === 'all' ? 'Full midterm review' : topic })
+  const invalid =
+    (subjectId && !subject) ||
+    (midtermId && !midterm) ||
+    (topic && (!midterm || (topic !== 'all' && !topics.includes(topic))))
+  let content
+  if (invalid) {
+    content = (
+      <section className="study-selection">
+        <h1>Study material not found</h1>
+        <p>This subject, midterm or topic is not available.</p>
+        <Link className="button" to="/study">
+          Choose a subject
+        </Link>
+      </section>
+    )
+  } else if (!subject) {
+    content = (
+      <StudySelection
+        eyebrow="THE STUDY ROOM · STEP 01"
+        title="Choose your subject"
+        description="Start with a subject, choose your midterm, then explore a topic."
+        cards={subjects.data.map((s) => ({
+          id: s.id,
+          title: s.title,
+          description: 'Study notes, interactive exercises and worked solutions.',
+          detail: `${midtermsFor(s).length} ${midtermsFor(s).length === 1 ? 'midterm' : 'midterms'} available`,
+          to: studyUrl(s.id),
+        }))}
+      />
+    )
+  } else if (!midterm) {
+    content = (
+      <StudySelection
+        eyebrow="STEP 02 · MIDTERMS"
+        title={subject.title}
+        description="Which midterm are you preparing for?"
+        cards={midtermsFor(subject).map((m) => ({
+          id: m.id,
+          title: m.title,
+          description: m.description,
+          detail: `${m.subject.exercises.length} exercises · ${new Set(m.subject.exercises.map((e) => e.topic)).size} topics`,
+          to: studyUrl(subject.id, m.id),
+        }))}
+      />
+    )
+  } else if (!topic) {
+    content = (
+      <StudySelection
+        eyebrow={`${subject.title} · ${midterm.title}`}
+        title="Choose a topic"
+        description="Focus on one area or review the complete midterm."
+        cards={[
+          ...topics.map((t) => ({
+            id: t,
+            title: t,
+            description: topicDescriptions[t] ?? 'Explore the practice material for this topic.',
+            detail: `${midterm.subject.exercises.filter((e) => e.topic === t).length} exercises`,
+            to: studyUrl(subject.id, midterm.id, t),
+          })),
+          {
+            id: 'all',
+            title: 'Full midterm review',
+            description: 'All topics, your saved results and a complete mock exam.',
+            detail: `${midterm.subject.exercises.length} exercises · 3 + 3 mock exam`,
+            to: studyUrl(subject.id, midterm.id, 'all'),
+          },
+        ]}
+      />
+    )
+  } else {
+    content = (
+      <StudySubject
+        key={`${subject.id}/${subject.version}/${midterm.id}/${topic}`}
+        subject={midterm.subject}
+        topic={topic}
+        midtermTitle={midterm.title}
+      />
+    )
+  }
   return (
     <div className="study-page">
-      <div className="study-topline">
-        <span className="study-kicker">THE STUDY ROOM</span>
-        <label>
-          Subject{' '}
-          <select value={subject.id} onChange={(e) => setSelected(e.target.value)}>
-            {subjects.data.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.title}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <StudySubject key={`${subject.id}/${subject.version}`} subject={subject} />
+      <StudyBreadcrumbs items={trail} />
+      {content}
     </div>
   )
 }
 
-function StudySubject({ subject }: { subject: Subject }) {
+function StudySubject({
+  subject,
+  topic,
+  midtermTitle,
+}: {
+  subject: Subject
+  topic: string
+  midtermTitle: string
+}) {
   const client = useQueryClient()
   const progress = useQuery({
     queryKey: ['study', 'progress', subject.id],
     queryFn: () => api<Progress>('/study/progress'),
   })
   const [tab, setTab] = useState('Practice')
-  const [topic, setTopic] = useState('All topics')
   const [queue, setQueue] = useState<Exercise[]>([])
   const [mode, setMode] = useState<'PRACTICE' | 'MOCK'>('PRACTICE')
   const [index, setIndex] = useState(0)
@@ -95,7 +186,7 @@ function StudySubject({ subject }: { subject: Subject }) {
   }
   const current = queue[index]
   const locked = request !== null
-  const topics = ['All topics', ...new Set(subject.exercises.map((e) => e.topic))]
+  const exercises = subject.exercises.filter((e) => topic === 'all' || e.topic === topic)
   const answered = queue.reduce(
     (n, e) => n + e.fields.filter((f) => answers[e.id]?.[f.id]?.trim()).length,
     0,
@@ -105,7 +196,9 @@ function StudySubject({ subject }: { subject: Subject }) {
     <>
       <section className="study-hero">
         <div>
-          <span className="study-kicker">MIDTERM 01 · ELECTRICAL CIRCUITS</span>
+          <span className="study-kicker">
+            {midtermTitle} · {topic === 'all' ? 'All topics' : topic}
+          </span>
           <h1>
             Understand it.
             <br />
@@ -119,8 +212,8 @@ function StudySubject({ subject }: { subject: Subject }) {
         </div>
         <div className="study-hero-stats">
           <CircuitBoard size={42} strokeWidth={1.2} />
-          <strong>{subject.exercises.length}</strong>
-          <span>original exercises</span>
+          <strong>{exercises.length}</strong>
+          <span>{topic === 'all' ? 'original exercises' : 'exercises in this topic'}</span>
           <div className="study-small-stats">
             <span>
               <b>3 + 3</b>reported exam format
@@ -157,7 +250,7 @@ function StudySubject({ subject }: { subject: Subject }) {
                 <p>Read the law, choose your reference direction, then apply it.</p>
               </div>
               <div className="study-lessons">
-                {subject.lessons.map((lesson, i) => (
+                {lessonsFor(subject, topic).map((lesson, i) => (
                   <article key={lesson.title} className="study-lesson">
                     <span className="study-number">{String(i + 1).padStart(2, '0')}</span>
                     <h3>{lesson.title}</h3>
@@ -190,36 +283,26 @@ function StudySubject({ subject }: { subject: Subject }) {
                   <h2>Pick a challenge</h2>
                   <p>Work at your own pace. Every answer comes with a reason.</p>
                 </div>
-                <label>
-                  Topic{' '}
-                  <select value={topic} onChange={(e) => setTopic(e.target.value)}>
-                    {topics.map((t) => (
-                      <option key={t}>{t}</option>
-                    ))}
-                  </select>
-                </label>
               </div>
               <div className="study-exercises">
-                {subject.exercises
-                  .filter((e) => topic === 'All topics' || e.topic === topic)
-                  .map((e, i) => (
-                    <button
-                      className="study-exercise-card"
-                      key={e.id}
-                      onClick={() => start([e], 'PRACTICE')}
-                    >
-                      <div>
-                        <span className="study-number">{String(i + 1).padStart(2, '0')}</span>
-                        <span className="study-level">{e.difficulty}</span>
-                      </div>
-                      <span className="study-topic">{e.topic}</span>
-                      <h3>{e.title}</h3>
-                      <span className="study-card-footer">
-                        {e.fields.length} {e.fields.length === 1 ? 'answer' : 'answers'}{' '}
-                        <ArrowRight size={18} />
-                      </span>
-                    </button>
-                  ))}
+                {exercises.map((e, i) => (
+                  <button
+                    className="study-exercise-card"
+                    key={e.id}
+                    onClick={() => start([e], 'PRACTICE')}
+                  >
+                    <div>
+                      <span className="study-number">{String(i + 1).padStart(2, '0')}</span>
+                      <span className="study-level">{e.difficulty}</span>
+                    </div>
+                    <span className="study-topic">{e.topic}</span>
+                    <h3>{e.title}</h3>
+                    <span className="study-card-footer">
+                      {e.fields.length} {e.fields.length === 1 ? 'answer' : 'answers'}{' '}
+                      <ArrowRight size={18} />
+                    </span>
+                  </button>
+                ))}
               </div>
             </>
           )}
@@ -227,6 +310,9 @@ function StudySubject({ subject }: { subject: Subject }) {
             <section className="study-mock">
               <Flag size={32} />
               <h2>A rehearsal for the real thing</h2>
+              <p>
+                This mock exam covers the full {midtermTitle.toLowerCase()}, across all core topics.
+              </p>
               <p>
                 Three theory questions. Three circuit calculations. Work through all six before
                 seeing any answers.
@@ -260,6 +346,9 @@ function StudySubject({ subject }: { subject: Subject }) {
           )}
           <section className="study-history">
             <h2>Your recent attempts</h2>
+            <p className="study-caption">
+              Saved practice and mock exams across all topics in this subject.
+            </p>
             <ErrorBox error={progress.error ?? historyError} />
             {progress.isPending ? (
               <Loading />

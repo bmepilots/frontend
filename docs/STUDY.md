@@ -1,10 +1,12 @@
 # Exam prep frontend
 
-Updated: 2026-10-13. Route `/study`, navigation **Exam prep**, backend API contract **5**.
+Updated: 2026-10-14. Route `/study`, navigation **Exam prep**, backend API contract **5**.
 
 ## User flow
 
-The subject selector initially offers Basics of (Mechanical) Engineering. The study room has Learn, Practice and Mock exam sections. Learn presents eight concept cards with formulas and common mistakes. Practice offers 38 original exercises filtered by topic, including 26 calculation/equation exercises and 12 theory questions. Mock exam selects three theory questions and one each on resistance, equations and superposition without replacement. It shows no hints or answer feedback until final submission. The reported exam structure is labelled as reported, not an official university specification; AC calculations are additional practice.
+Exam prep opens with clickable subject cards. Choose **Basics of (Mechanical) Engineering → First midterm → a topic** to enter the study room. Each selection screen uses full-card links, counts of available material and breadcrumb navigation. Only the real first midterm is offered. Topic cards are derived from the exercise bank; **Full midterm review** opens all topics together.
+
+The study room has Learn, Practice and Mock exam sections. Learn presents the concept cards relevant to the selected topic; Theory and Full midterm review show all eight. Practice shows only the selected topic's exercises, or all 38 original exercises in Full midterm review (26 calculation/equation exercises and 12 theory questions). Mock exam always covers the complete first midterm, explicitly stated on its start screen, selecting three theory questions and one each on resistance, equations and superposition without replacement. It shows no hints or answer feedback until final submission. The reported exam structure is labelled as reported, not an official university specification; AC calculations are additional practice. Saved results remain accessible across topics.
 
 Circuit questions share an interactive SVG with keyboard-selectable components, a connection list and explicit source polarity/current arrows. The question fixes resistor current references, including intentionally reversed directions. The source selector in superposition shows all sources or one active source, replacing inactive ideal voltage sources with shorts and current sources with opens. It illustrates the reduced topology without revealing the numerical solution. Circuit coordinates and electrical connections originate from the same backend catalog.
 
@@ -14,14 +16,18 @@ The history section shows the latest 20 saved attempts with Budapest time. Openi
 
 ## Implementation map
 
-- `src/features/study/StudyPage.tsx`: subject loading, learning cards, topic filter, session state, six-question navigation, submit/retry, result review and history.
+- `src/features/study/StudyPage.tsx`: subject loading, URL-driven selection hierarchy, learning cards, topic filtering, session state, six-question navigation, submit/retry, result review and history.
+- `StudySelection.tsx`: reusable subject/midterm/topic card screen and accessible breadcrumbs.
+- `curriculum.ts`: explicit first-midterm mapping, topic descriptions, lesson selection and canonical link construction.
 - `CircuitDiagram.tsx`: data-driven vector circuit, component inspection, keyboard actions, source deactivation and text connections.
 - `types.ts`: public API types and topic-balanced mock sampling.
 - `study.css`: scoped responsive study-room styles; existing portal layout and shared buttons remain in use.
-- `StudyPage.test.tsx`: submit-before-feedback, error/retry payload preservation, exam blueprint/navigation and accessible circuit source controls.
+- `StudyPage.test.tsx`: selection hierarchy, browser-back and breadcrumb navigation, direct links, invalid-link recovery, topic/lesson filtering, submit-before-feedback, error/retry payload preservation, full-midterm exam blueprint from a topic and accessible circuit source controls.
 - `src/app/App.tsx` lazily loads the protected route; `Layout.tsx` provides the navigation entry.
 
-TanStack Query keys begin with `study`. Existing auth lifecycle clears private cached data. Requests use the shared same-origin cookie/CSRF client. No tokens, answers or solution banks enter localStorage. Draft answers and navigation state live in React memory only; reloading or leaving the route discards an unsubmitted session. Submitted attempts survive restarts through MariaDB.
+TanStack Query keys begin with `study`. Existing auth lifecycle clears private cached data. Requests use the shared same-origin cookie/CSRF client. No tokens, answers or solution banks enter localStorage. The subject/midterm/topic selection lives in URL query parameters and supports direct links, reload and browser back/forward. Draft answers, selected workspace tab and in-progress sessions live in React memory only; reloading or leaving a topic discards an unsubmitted session. Submitted attempts survive restarts through MariaDB.
+
+Canonical navigation URLs are `/study`, `/study?subject=basics-of-engineering`, `/study?subject=basics-of-engineering&midterm=1`, and `/study?subject=basics-of-engineering&midterm=1&topic=Resistance`. Topic names are URL-encoded by `URLSearchParams`; `topic=all` means Full midterm review. Unknown subjects, unavailable midterms, unknown topics or child selections without parents show a recovery link, rather than opening unrelated material. An empty catalog shows an explicit empty state.
 
 ## Submission and failure behavior
 
@@ -35,7 +41,7 @@ Loading, empty history and API errors are explicit. Results are announced throug
 
 The browser has no private answer key and never evaluates expressions. The backend-generated public catalog supplies all English text, fields and circuit parts. A stored result contains expected answers only after submission. New catalog fields must update these TS interfaces with backend DTOs and tests. Do not silently introduce client-side grading or send input to external AI services.
 
-See sibling backend [`docs/STUDY.md`](../../backend/docs/STUDY.md) for the complete analysis of both PowerPoint decks and all six images, source ambiguities, numerical generation, parser limitations, schema/API contracts and extension checklist. The initial backend serves one subject; adding another requires subject-aware catalog loading/progress as described there, not just adding an option to the frontend.
+See sibling backend [`docs/STUDY.md`](../../backend/docs/STUDY.md) for the complete analysis of both PowerPoint decks and all six images, source ambiguities, numerical generation, parser limitations, schema/API contracts and extension checklist. Contract 5 serves one subject with one midterm bank. `midtermsFor` explicitly maps that bank to First midterm; it deliberately does not duplicate it under imaginary later midterms. Adding another subject or midterm requires backend catalog/progress scoping and corresponding DTOs before adding navigation metadata. Preserve historical result snapshots and version checks when extending this contract. Add topic descriptions and lesson-title mappings in `curriculum.ts` when introducing or renaming topics/lessons; the current mapping must match the backend's English lesson titles.
 
 Detailed provenance is documented without publishing the original attachments. The supplied course material determines coverage and difficulty, while the 38 exercises are newly authored. The supplemental Learn link points to MIT OCW on superposition and terminal equivalents.
 

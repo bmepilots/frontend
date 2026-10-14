@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MemoryRouter, useNavigate } from 'react-router-dom'
 import { api } from '../../shared/api/client'
 import { StudyPage } from './StudyPage'
 import { CircuitDiagram } from './CircuitDiagram'
@@ -26,7 +27,20 @@ const subject: Subject = {
   id: 'basics-of-engineering',
   title: 'Basics of Engineering',
   version: 'test-1',
-  lessons: [],
+  lessons: [
+    {
+      title: 'Equivalent resistance',
+      formula: 'R = R1 + R2',
+      text: 'Combine resistors.',
+      trap: 'Check the terminals.',
+    },
+    {
+      title: 'Superposition',
+      formula: 'I = I1 + I2',
+      text: 'Add signed contributions.',
+      trap: 'Do not add powers.',
+    },
+  ],
   exercises: [
     exercise,
     ...[1, 2, 3, 4].map((i) => ({
@@ -80,7 +94,11 @@ beforeEach(() => {
     })
 })
 afterEach(cleanup)
-function mount() {
+function HistoryControls() {
+  const navigate = useNavigate()
+  return <button onClick={() => navigate(-1)}>Browser back</button>
+}
+function mount(path = '/study?subject=basics-of-engineering&midterm=1&topic=all') {
   render(
     <QueryClientProvider
       client={
@@ -89,10 +107,54 @@ function mount() {
         })
       }
     >
-      <StudyPage />
+      <MemoryRouter initialEntries={[path]}>
+        <HistoryControls />
+        <StudyPage />
+      </MemoryRouter>
     </QueryClientProvider>,
   )
 }
+it('opens subject, midterm and topic cards before the filtered workspace, with back navigation', async () => {
+  mount('/study')
+  await screen.findByRole('heading', { name: 'Choose your subject' })
+  expect(screen.queryByRole('button', { name: 'Practice' })).toBeNull()
+  await userEvent.click(screen.getByRole('link', { name: /Basics of Engineering/ }))
+  await userEvent.click(screen.getByRole('link', { name: /First midterm/ }))
+  expect(screen.getByRole('heading', { name: 'Choose a topic' })).toBeTruthy()
+  await userEvent.click(screen.getByRole('link', { name: /^Resistance/ }))
+  expect(screen.getByRole('button', { name: /Test resistance/ })).toBeTruthy()
+  expect(screen.queryByRole('button', { name: /Theory 1/ })).toBeNull()
+  await userEvent.click(screen.getByRole('button', { name: 'Browser back' }))
+  expect(screen.getByRole('heading', { name: 'Choose a topic' })).toBeTruthy()
+  await userEvent.click(screen.getByRole('link', { name: /Full midterm review/ }))
+  expect(screen.getByRole('button', { name: /Theory 1/ })).toBeTruthy()
+  await userEvent.click(screen.getByRole('link', { name: 'First midterm' }))
+  expect(screen.getByRole('heading', { name: 'Choose a topic' })).toBeTruthy()
+  await userEvent.click(screen.getByRole('link', { name: 'Exam prep' }))
+  expect(screen.getByRole('heading', { name: 'Choose your subject' })).toBeTruthy()
+})
+it('restores a topic from its URL without requiring previous selections', async () => {
+  mount('/study?subject=basics-of-engineering&midterm=1&topic=Superposition')
+  expect(await screen.findByRole('button', { name: /Superposition/ })).toBeTruthy()
+  expect(screen.queryByRole('button', { name: /Test resistance/ })).toBeNull()
+  await userEvent.click(screen.getByRole('button', { name: 'Learn' }))
+  expect(screen.getByRole('heading', { name: 'Superposition' })).toBeTruthy()
+  expect(screen.queryByRole('heading', { name: 'Equivalent resistance' })).toBeNull()
+  expect(screen.getByRole('link', { name: 'First midterm' }).getAttribute('href')).toBe(
+    '/study?subject=basics-of-engineering&midterm=1',
+  )
+})
+it.each([
+  '/study?subject=unknown',
+  '/study?subject=basics-of-engineering&midterm=2',
+  '/study?subject=basics-of-engineering&midterm=1&topic=unknown',
+  '/study?topic=Resistance',
+])('offers recovery for unavailable study links: %s', async (path) => {
+  mount(path)
+  await screen.findByRole('heading', { name: 'Study material not found' })
+  await userEvent.click(screen.getByRole('link', { name: 'Choose a subject' }))
+  expect(screen.getByRole('heading', { name: 'Choose your subject' })).toBeTruthy()
+})
 it('grades only after submission and explains incorrect answers', async () => {
   mount()
   await userEvent.click(await screen.findByRole('button', { name: /Test resistance/ }))
@@ -125,7 +187,7 @@ it('uses the six-question exam blueprint and keeps answers when navigating', asy
   const picked = mockQuestions(subject.exercises)
   expect(picked.filter((e) => e.topic === 'Theory')).toHaveLength(3)
   expect(new Set(picked.map((e) => e.id)).size).toBe(6)
-  mount()
+  mount('/study?subject=basics-of-engineering&midterm=1&topic=Resistance')
   await userEvent.click(await screen.findByRole('button', { name: 'Mock exam' }))
   await userEvent.click(screen.getByRole('button', { name: /Start mock exam/ }))
   await userEvent.click(screen.getByRole('radio', { name: 'B' }))

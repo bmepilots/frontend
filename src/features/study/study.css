@@ -1,3 +1,120 @@
+.study-breadcrumbs {
+  margin-bottom: 25px;
+  font-size: 12px;
+  color: #526c60;
+}
+.study-breadcrumbs ol {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.study-breadcrumbs li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.study-breadcrumbs a {
+  color: #246454;
+  text-underline-offset: 4px;
+}
+.study-breadcrumbs [aria-current] {
+  font-weight: 650;
+}
+.study-selection-header {
+  background: #17383d;
+  color: #f9fbf4;
+  padding: 36px 40px;
+  border-radius: 20px;
+  margin-bottom: 25px;
+}
+.study-selection-header h1 {
+  font-size: clamp(28px, 3vw, 42px);
+  line-height: 1.2;
+  margin: 16px 0;
+  letter-spacing: -0.025em;
+}
+.study-selection-header p {
+  color: #c3d8cf;
+  font-size: 14px;
+  line-height: 1.7;
+  margin-bottom: 0;
+}
+.study-selection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
+  gap: 18px;
+}
+.study-selection-card {
+  display: flex;
+  flex-direction: column;
+  padding: 28px;
+  border: 1px solid #dce4dc;
+  border-radius: 15px;
+  background: #fffefa;
+  color: #17383d;
+  text-decoration: none;
+  transition:
+    border-color 0.15s,
+    transform 0.15s;
+}
+.study-selection-card:hover {
+  border-color: #689380;
+  transform: translateY(-2px);
+}
+.study-selection-card:focus-visible {
+  outline: 3px solid #246454;
+  outline-offset: 4px;
+}
+.study-selection-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  background: #e7f0df;
+  border-radius: 12px;
+  color: #246454;
+}
+.study-selection-card h2 {
+  font-size: 21px;
+  line-height: 1.4;
+  margin: 22px 0 12px;
+}
+.study-selection-card p {
+  color: #64776b;
+  font-size: 13px;
+  line-height: 1.7;
+  margin: 0 0 25px;
+}
+.study-selection-detail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  border-top: 1px solid #e6ecdf;
+  padding-top: 17px;
+  margin-top: auto;
+  font-size: 12px;
+  font-weight: 600;
+}
+.study-selection-empty {
+  padding: 24px;
+  background: white;
+  border-radius: 12px;
+}
+@media (max-width: 650px) {
+  .study-selection-header {
+    padding: 28px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .study-selection-card {
+    transition: none;
+  }
+}
 .study-page {
   --study-ink: #17383d;
   --study-green: #246454;
