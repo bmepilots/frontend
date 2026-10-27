@@ -41,7 +41,15 @@ export interface Result {
 }
 export interface Progress {
   total: { attempts: number; earned: number; possible: number }
-  recent: { id: string; mode: string; earned: number; possible: number; created_at: string }[]
+  exercises: { exerciseId: string; attempts: number; bestEarned: number; possible: number }[]
+  recent: {
+    id: string
+    mode: string
+    earned: number
+    possible: number
+    createdAt?: string
+    created_at?: string | number
+  }[]
 }
 export interface Attempt {
   requestId: string

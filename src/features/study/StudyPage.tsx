@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BookOpen, CircuitBoard, Flag, ArrowRight, Check, RotateCcw } from 'lucide-react'
@@ -16,6 +16,7 @@ import {
   type Subject,
 } from './types'
 import './study.css'
+import { attemptDate } from './progress'
 
 export function StudyPage() {
   const subjects = useQuery({
@@ -185,8 +186,21 @@ function StudySubject({
     save.reset()
   }
   const current = queue[index]
+  const questionHeading = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    if (current && !result) questionHeading.current?.focus()
+  }, [current, result])
   const locked = request !== null
   const exercises = subject.exercises.filter((e) => topic === 'all' || e.topic === topic)
+  const completed = new Map(progress.data?.exercises?.map((e) => [e.exerciseId, e]) ?? [])
+  const completedCount = exercises.filter((e) => completed.has(e.id)).length
+  const bestPoints = exercises.reduce((sum, e) => sum + (completed.get(e.id)?.bestEarned ?? 0), 0)
+  const availablePoints = exercises.reduce((sum, e) => sum + e.fields.length, 0)
+  const resultIndex =
+    result?.exercises.length === 1
+      ? exercises.findIndex((e) => e.id === result.exercises[0].exerciseId)
+      : -1
+  const nextExercise = resultIndex >= 0 ? exercises[resultIndex + 1] : undefined
   const answered = queue.reduce(
     (n, e) => n + e.fields.filter((f) => answers[e.id]?.[f.id]?.trim()).length,
     0,
@@ -284,6 +298,17 @@ function StudySubject({
                   <p>Work at your own pace. Every answer comes with a reason.</p>
                 </div>
               </div>
+              <p className="study-progress-summary" role="status">
+                {progress.isPending
+                  ? 'Loading progress…'
+                  : progress.isError
+                    ? 'Progress unavailable. Your saved results are kept.'
+                    : `${completedCount}/${exercises.length} tasks completed · ${bestPoints}/${availablePoints} points collected`}
+              </p>
+              <p className="study-caption">
+                Points use your best score per task. Completed means submitted and evaluated,
+                including partial scores and mock exam answers.
+              </p>
               <div className="study-exercises">
                 {exercises.map((e, i) => (
                   <button
@@ -297,6 +322,20 @@ function StudySubject({
                     </div>
                     <span className="study-topic">{e.topic}</span>
                     <h3>{e.title}</h3>
+                    {completed.has(e.id) ? (
+                      <span className="study-completed">
+                        <Check size={15} /> Completed · Best: {completed.get(e.id)!.bestEarned}/
+                        {completed.get(e.id)!.possible}
+                      </span>
+                    ) : (
+                      <span className="study-caption">
+                        {progress.isPending
+                          ? 'Loading progress…'
+                          : progress.isError
+                            ? 'Progress unavailable'
+                            : 'Not started'}
+                      </span>
+                    )}
                     <span className="study-card-footer">
                       {e.fields.length} {e.fields.length === 1 ? 'answer' : 'answers'}{' '}
                       <ArrowRight size={18} />
@@ -372,10 +411,7 @@ function StudySubject({
                   >
                     <span>
                       {a.mode === 'MOCK' ? 'Mock exam' : 'Practice'} ·{' '}
-                      {new Date(a.created_at + 'Z').toLocaleString('en-GB', {
-                        timeZone: 'Europe/Budapest',
-                      })}{' '}
-                      (Budapest)
+                      {attemptDate(a.createdAt ?? a.created_at)}
                     </span>
                     <strong>
                       {a.earned}/{a.possible} <ArrowRight size={14} />
@@ -422,7 +458,9 @@ function StudySubject({
               </span>
             </nav>
           )}
-          <h2>{current.title}</h2>
+          <h2 ref={questionHeading} tabIndex={-1}>
+            {current.title}
+          </h2>
           <p className="study-prompt">{current.prompt}</p>
           <div className={current.circuit ? 'study-solving-grid' : 'study-solving-grid theory'}>
             {current.circuit && (
@@ -636,7 +674,15 @@ function StudySubject({
                 Try again
               </button>
             )}
+            {nextExercise && (
+              <button className="button" onClick={() => start([nextExercise], 'PRACTICE')}>
+                Next Task <ArrowRight size={17} />
+              </button>
+            )}
           </div>
+          {resultIndex === exercises.length - 1 && resultIndex >= 0 && (
+            <p className="study-caption">You have reached the last task in this selection.</p>
+          )}
         </section>
       )}
       <p className="study-footnote">

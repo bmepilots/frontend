@@ -50,3 +50,11 @@ Detailed provenance is documented without publishing the original attachments. T
 Run `npm run test`, `npm run lint`, `npm run build` and `npm run format:check`. The frontend tests use controlled transport responses; full-stack testing must also run against isolated Docker MariaDB3308 with Gmail disabled. Browser review must cover desktop/mobile, a negative numeric answer, equation feedback, source switching, complete mock submission and reopening private history. Actual results belong in STATUS, not inferred from test filenames.
 
 The frontend Docker label requires contract `5`, coordinated with the backend's supported list. No Cloudflare, Caddy, Gmail, SQL credential, mount or database-engine change is needed. The existing guarded updater should only select compatible published images. Local completion is not proof of publication or deployment.
+
+## Completed tasks, best scores and Next Task — contract 7
+
+Task cards show Completed after an evaluated submission, including partial/zero scores, and display the best earned/possible score from saved results. The visible selection's summary totals completed tasks and adds each task's best points once. Practice and mock answers both contribute; retrying cannot inflate collected points. Data comes from the owner-only backend aggregate over all attempts in the current catalog version, not the 20 recent rows. Existing results work automatically; older catalog versions stay in history but do not mix with new grading denominators.
+
+After a single-task result, Next Task opens the next exercise in the selected topic/catalog order with fresh answers and moves keyboard focus to its heading. It does not wrap or cross topic boundaries; the final task explains that the selection has ended. Mock exams keep their existing question navigation. Task completion is not a claim of full marks.
+
+History uses explicit ISO UTC createdAt, rendered in Europe/Budapest. progress.ts also accepts legacy created_at values (UTC SQL strings or epoch milliseconds) and existing timezone offsets without appending a second Z. Missing/invalid dates display Date unavailable. The backend retains a normalized legacy key for old clients. Tests cover UTC/offset/epoch formats, winter/summer local time, stored badges/points, fresh Next Task answers and the final-task boundary. No new schema or browser persistence is introduced.

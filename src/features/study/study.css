@@ -122,6 +122,21 @@
   max-width: 1320px;
   margin: auto;
 }
+.study-completed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #246454;
+  font-size: 13px;
+  font-weight: 650;
+}
+.study-progress-summary {
+  padding: 16px 20px;
+  background: #e7f0df;
+  border-radius: 12px;
+  color: #17383d;
+  font-weight: 650;
+}
 .study-topline,
 .study-section-heading,
 .study-circuit-toolbar,

@@ -7,7 +7,7 @@ import { MemoryRouter, useNavigate } from 'react-router-dom'
 import { api } from '../../shared/api/client'
 import { StudyPage } from './StudyPage'
 import { CircuitDiagram } from './CircuitDiagram'
-import { mockQuestions, type Subject, type Exercise, type Attempt } from './types'
+import { mockQuestions, type Subject, type Exercise, type Attempt, type Progress } from './types'
 vi.mock('../../shared/api/client', async (original) => ({
   ...(await original<typeof import('../../shared/api/client')>()),
   api: vi.fn(),
@@ -57,17 +57,24 @@ const subject: Subject = {
   ],
 }
 let failure = false
+let progress: Progress
 beforeEach(() => {
   failure = false
+  progress = { total: { attempts: 0, earned: 0, possible: 0 }, exercises: [], recent: [] }
   vi.mocked(api)
     .mockReset()
     .mockImplementation(async (path, options) => {
       if (path === '/study/subjects') return [subject]
-      if (path === '/study/progress')
-        return { total: { attempts: 0, earned: 0, possible: 0 }, recent: [] }
+      if (path === '/study/progress') return structuredClone(progress)
       if (path === '/study/attempts') {
         if (failure) throw new Error('Connection interrupted')
         const body = options?.body as Attempt
+        progress.exercises = body.submissions.map((s) => ({
+          exerciseId: s.exerciseId,
+          attempts: 1,
+          bestEarned: 0,
+          possible: 1,
+        }))
         return {
           id: 'saved',
           earned: 0,
@@ -92,6 +99,32 @@ beforeEach(() => {
       }
       throw new Error(path)
     })
+})
+it('shows stored completion, best points and valid history dates after opening a topic', async () => {
+  progress.exercises = [{ exerciseId: 'r-1', attempts: 3, bestEarned: 1, possible: 1 }]
+  progress.recent = [
+    { id: 'old', mode: 'PRACTICE', earned: 1, possible: 1, createdAt: '2026-10-27T10:30:00Z' },
+  ]
+  mount('/study?subject=basics-of-engineering&midterm=1&topic=Resistance')
+  await screen.findByText(/Completed · Best: 1\/1/)
+  expect(screen.getByText('1/1 tasks completed · 1/1 points collected')).toBeTruthy()
+  expect(screen.getByText(/27\/10\/2026, 11:30:00/)).toBeTruthy()
+  expect(screen.queryByText(/Invalid Date/)).toBeNull()
+})
+it('continues to the next task with empty answers and stops at the topic boundary', async () => {
+  mount('/study?subject=basics-of-engineering&midterm=1&topic=Theory')
+  await userEvent.click(await screen.findByRole('button', { name: /Theory 3/ }))
+  await userEvent.click(screen.getByRole('radio', { name: 'B' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Check answers' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Next Task' }))
+  expect(screen.getByRole('heading', { name: 'Theory 4' })).toBeTruthy()
+  expect((screen.getByRole('radio', { name: 'B' }) as HTMLInputElement).checked).toBe(false)
+  await userEvent.click(screen.getByRole('button', { name: 'Check answers' }))
+  await screen.findByText('ATTEMPT SAVED')
+  expect(screen.queryByRole('button', { name: 'Next Task' })).toBeNull()
+  expect(screen.getByText('You have reached the last task in this selection.')).toBeTruthy()
+  await userEvent.click(screen.getByRole('button', { name: 'Back to exercises' }))
+  expect(await screen.findByText(/Completed · Best: 0\/1/)).toBeTruthy()
 })
 afterEach(cleanup)
 function HistoryControls() {

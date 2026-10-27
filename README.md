@@ -86,3 +86,5 @@ Exam prep starts with clickable **subject → midterm → topic** cards. Choose 
 ## Shared mail moderation
 
 Admins can open any message in Shared inbox and mark it important for everyone, remove its shared importance, or delete it for everyone after confirmation. A shared importance badge appears in the list and message view for all members. Personal stars and read flags remain independent. Deletion affects the portal inbox only: Gmail stays unchanged, queued forwarding is cancelled, and copies already sending/delivered cannot be recalled. Deleted content is retained internally for deduplication and backup consistency, not permanently erased. The visible inbox/detail refresh every 30 seconds. The matching backend must support API contract 6.
+
+Exam prep task cards now show **Completed**, best scores and a collected-points summary. Repeated attempts count each task's best score once; mock answers also contribute. **Next Task** continues within the selected topic after evaluation. History dates use explicit UTC input and Europe/Budapest display. See docs/STUDY.md for contract 7 and catalog-version scope.
